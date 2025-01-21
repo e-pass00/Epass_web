@@ -139,7 +139,7 @@ const useAuthStore = create((set, get) => ({
       const { user: firebaseUser } = userCredential;
 
       await sendEmailVerification(firebaseUser, {
-        url: 'http://localhost:5173',
+        url: 'https://epass-ten.vercel.app/',
       });
 
       const userDocRef = doc(db, 'users', firebaseUser.uid);
