@@ -1,4 +1,4 @@
-import CreativeProfile from "../components/CreativeProfile";
+import CreativeProfile from '../components/CreativeProfile';
 
 function ProfilePage() {
   return <CreativeProfile />;

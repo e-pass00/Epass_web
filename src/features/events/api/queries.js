@@ -14,8 +14,7 @@ const getFirebaseToken = async () => {
   return await currentUser.getIdToken();
 };
 
-// Ajout de la nouvelle clé dans eventKeys
-// Ajout de la nouvelle clé dans eventKeys
+// Mise à jour de l'objet eventKeys pour inclure la réservation
 export const eventKeys = {
   all: ['events'],
   upcoming: () => [...eventKeys.all, 'upcoming'],
@@ -29,6 +28,599 @@ export const eventKeys = {
   ],
   userNotifications: () => [...eventKeys.all, 'userNotifications'],
   transferTicket: (ticketId) => [...eventKeys.all, 'transfer', ticketId],
+  create: () => [...eventKeys.all, 'create'],
+  // Nouvelle clé pour la réservation
+  reservation: (eventId) => [...eventKeys.all, 'reservation', eventId],
+  dashboard: (eventId) => [...eventKeys.all, 'dashboard', eventId],
+};
+
+export const userKeys = {
+  all: ['user'],
+  details: () => [...userKeys.all, 'details'],
+};
+
+const fetchEventDashboard = async (eventId) => {
+  try {
+    const token = await getFirebaseToken();
+
+    if (!token) {
+      throw new Error("Token d'authentification non disponible");
+    }
+
+    if (!eventId) {
+      throw new Error("L'ID de l'événement est requis");
+    }
+
+    const response = await fetch(
+      `${API_URL}/eventsBillets/dashboard/${eventId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = {
+        status: response.status,
+        message: data.message || 'Une erreur est survenue',
+        error: data.error || 'UNKNOWN_ERROR',
+        details: data.details,
+      };
+
+      switch (response.status) {
+        case 400:
+          errorMessage.message = "L'ID de l'événement est invalide";
+          errorMessage.error = 'INVALID_EVENT_ID';
+          break;
+        case 401:
+          errorMessage.message = 'Non autorisé - Veuillez vous reconnecter';
+          errorMessage.error = 'UNAUTHORIZED';
+          break;
+        case 403:
+          errorMessage.message = "Vous n'avez pas accès à ces informations";
+          errorMessage.error = 'FORBIDDEN';
+          break;
+        case 404:
+          errorMessage.message = "L'événement n'a pas été trouvé";
+          errorMessage.error = 'EVENT_NOT_FOUND';
+          break;
+        case 500:
+          errorMessage.message =
+            'Erreur serveur - Veuillez réessayer plus tard';
+          errorMessage.error = 'SERVER_ERROR';
+          break;
+      }
+
+      console.error(
+        'Erreur lors de la récupération des données du dashboard:',
+        errorMessage
+      );
+      throw errorMessage;
+    }
+
+    if (!data.success || !data.data) {
+      throw new Error('Format de réponse invalide');
+    }
+
+    return data.data;
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+      throw {
+        status: 0,
+        message:
+          'Impossible de se connecter au serveur. Vérifiez votre connexion internet.',
+        error: 'NETWORK_ERROR',
+      };
+    }
+
+    throw error;
+  }
+};
+
+export const useEventDashboard = (eventId) => {
+  const { user } = useAuthStore();
+
+  return useQuery({
+    queryKey: eventKeys.dashboard(eventId),
+    queryFn: () => fetchEventDashboard(eventId),
+    enabled: !!user && !!eventId,
+    staleTime: 2 * 60 * 1000, // Cache valide pendant 2 minutes
+    select: (data) => {
+      if (!data) return null;
+
+      // Transformation des dates si nécessaire dans les données
+      const transformedEvent = {
+        ...data.event,
+        startDate: data.event.startDate ? new Date(data.event.startDate) : null,
+        endDate: data.event.endDate ? new Date(data.event.endDate) : null,
+        createdAt: data.event.createdAt ? new Date(data.event.createdAt) : null,
+      };
+
+      // Transformation des dates dans les données de vente par période
+      const transformedSaleByPeriod = {
+        ...data.saleByPeriod,
+        sevenDays: data.saleByPeriod.sevenDays?.map((day) => ({
+          ...day,
+          date: day.date ? new Date(day.date) : null,
+        })),
+        sevenMonths: data.saleByPeriod.sevenMonths?.map((month) => ({
+          ...month,
+          date: month.date ? new Date(month.date) : null,
+        })),
+      };
+
+      return {
+        ...data,
+        event: transformedEvent,
+        saleByPeriod: transformedSaleByPeriod,
+      };
+    },
+  });
+};
+
+// Fonction pour réserver des tickets
+const reserveTickets = async ({
+  eventId,
+  tickets,
+  paymentSystem,
+  phoneNumber,
+}) => {
+  try {
+    console.log('reserveTickets received payment system:', paymentSystem);
+
+    if (!eventId || !Array.isArray(tickets) || !paymentSystem || !phoneNumber) {
+      throw {
+        status: 400,
+        message: 'Informations manquantes pour la réservation',
+        error: 'MISSING_PARAMETERS',
+        details: {
+          eventId: !eventId ? "ID de l'événement requis" : null,
+          tickets: !Array.isArray(tickets) ? 'Liste des tickets requise' : null,
+          paymentSystem: !paymentSystem ? 'Système de paiement requis' : null,
+          phoneNumber: !phoneNumber ? 'Numéro de téléphone requis' : null,
+        },
+      };
+    }
+
+    // Transformer les tickets au format attendu par l'API
+    const transformedTickets = tickets.map((ticket) => ({
+      categoryTicketId: ticket.categoryId,
+      quantity: parseInt(ticket.quantity),
+    }));
+
+    const formattedPhone = phoneNumber.startsWith('+242')
+      ? phoneNumber
+      : `+242${phoneNumber}`;
+
+    const requestBody = {
+      eventId,
+      tickets: transformedTickets,
+      paymentSystem,
+      phoneNumber: formattedPhone,
+    };
+
+    console.log('Request body being sent to API:', requestBody);
+
+    const token = await getFirebaseToken();
+
+    const response = await fetch(`${API_URL}/reservationTickets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+    console.log('API response:', data);
+
+    if (!response.ok) {
+      throw {
+        status: response.status,
+        message: data.message || 'Une erreur est survenue',
+        error: data.error || 'UNKNOWN_ERROR',
+        details: data.details,
+      };
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Full error details:', error);
+    throw error;
+  }
+};
+
+// Hook React Query pour la réservation de tickets
+export const useReserveTickets = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+
+  return useMutation({
+    // Remove reservationData from mutation key since it's not defined yet
+    mutationKey: eventKeys.all,
+    mutationFn: reserveTickets,
+    onMutate: async (reservationData) => {
+      if (!user) {
+        throw new Error('Utilisateur non authentifié');
+      }
+
+      await queryClient.cancelQueries(
+        eventKeys.reservation(reservationData.eventId)
+      );
+      await queryClient.cancelQueries(
+        eventKeys.ticketCategories(reservationData.eventId)
+      );
+
+      const previousTickets = queryClient.getQueryData(
+        eventKeys.ticketCategories(reservationData.eventId)
+      );
+
+      return { previousTickets };
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousTickets) {
+        queryClient.setQueryData(
+          eventKeys.ticketCategories(variables.eventId),
+          context.previousTickets
+        );
+      }
+      console.error('Erreur lors de la réservation des tickets:', error);
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries(eventKeys.reservation(variables.eventId));
+      queryClient.invalidateQueries(
+        eventKeys.ticketCategories(variables.eventId)
+      );
+      queryClient.invalidateQueries(eventKeys.userTickets());
+      queryClient.invalidateQueries(eventKeys.userNotifications());
+    },
+  });
+};
+
+const fetchUserEvents = async () => {
+  try {
+    const token = await getFirebaseToken();
+
+    if (!token) {
+      throw new Error("Token d'authentification non disponible");
+    }
+
+    const response = await fetch(`${API_URL}/events/userEvents`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = {
+        status: response.status,
+        message: data.message || 'Une erreur est survenue',
+        error: data.error || 'UNKNOWN_ERROR',
+        details: data.details,
+      };
+
+      switch (response.status) {
+        case 400:
+          errorMessage.message = "L'id de l'utilisateur est requis";
+          errorMessage.error = 'MISSING_UID';
+          break;
+        case 401:
+          errorMessage.message = 'Non autorisé - Veuillez vous reconnecter';
+          errorMessage.error = 'UNAUTHORIZED';
+          break;
+        case 404:
+          errorMessage.message = "L'utilisateur n'a pas été trouvé";
+          errorMessage.error = 'USER_NOT_FOUND';
+          break;
+        case 500:
+          errorMessage.message =
+            'Erreur serveur - Veuillez réessayer plus tard';
+          errorMessage.error = 'SERVER_ERROR';
+          break;
+      }
+
+      console.error(
+        'Erreur lors de la récupération des événements:',
+        errorMessage
+      );
+      throw errorMessage;
+    }
+
+    // Vérification de la structure de la réponse
+    if (!data.success || !data.data) {
+      throw new Error('Format de réponse invalide');
+    }
+
+    return data.data;
+  } catch (error) {
+    // Gestion des erreurs réseau
+    if (!error.isServerError) {
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        throw {
+          status: 0,
+          message:
+            'Impossible de se connecter au serveur. Vérifiez votre connexion internet.',
+          error: 'NETWORK_ERROR',
+        };
+      }
+
+      // Erreur lors de la récupération du token
+      if (error.message === "Token d'authentification non disponible") {
+        throw {
+          status: 401,
+          message: error.message,
+          error: 'AUTH_ERROR',
+        };
+      }
+    }
+
+    throw error;
+  }
+};
+
+// Ajout de la clé pour les événements utilisateur
+eventKeys.userEvents = () => [...eventKeys.all, 'userEvents'];
+
+export const useUserEvents = () => {
+  const { user } = useAuthStore();
+
+  return useQuery({
+    queryKey: eventKeys.userEvents(),
+    queryFn: fetchUserEvents,
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // Cache valide pendant 5 minutes
+    select: (data) => {
+      if (!data) return { userRole: null, events: [] };
+
+      // Transformation des dates si nécessaire
+      const transformedEvents = data.events.map((event) => ({
+        ...event,
+        startDate: event.startDate ? new Date(event.startDate) : null,
+        endDate: event.endDate ? new Date(event.endDate) : null,
+        createdAt: event.createdAt ? new Date(event.createdAt) : null,
+      }));
+
+      return {
+        userRole: data.userRole,
+        events: transformedEvents,
+      };
+    },
+  });
+};
+
+const createEvent = async ({
+  eventData,
+  ticketCategories,
+  coverImage,
+  coverVideo,
+}) => {
+  try {
+    const token = await getFirebaseToken();
+    if (!token) {
+      throw new Error("Token d'authentification non disponible");
+    }
+
+    // Création du FormData
+    const formData = new FormData();
+
+    // Ajout des données de l'événement
+    formData.append('event', JSON.stringify(eventData));
+    formData.append('ticketCategories', JSON.stringify(ticketCategories));
+
+    // Ajout de l'image de couverture (obligatoire)
+    if (!coverImage) {
+      throw new Error("L'image de couverture est obligatoire");
+    }
+    formData.append('coverImage', coverImage);
+
+    // Ajout de la vidéo de couverture (optionnelle)
+    if (coverVideo) {
+      formData.append('coverVideo', coverVideo);
+    }
+
+    const response = await fetch(`${API_URL}/events`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = {
+        status: response.status,
+        message: data.message || 'Une erreur est survenue',
+        error: data.error || 'UNKNOWN_ERROR',
+        details: data.details,
+      };
+
+      switch (response.status) {
+        case 400:
+          errorMessage.message = data.message || 'Données invalides';
+          break;
+        case 401:
+          errorMessage.message = 'Non autorisé - Veuillez vous reconnecter';
+          errorMessage.error = 'UNAUTHORIZED';
+          break;
+        case 403:
+          errorMessage.message =
+            "Vous n'avez pas les droits d'organisateur nécessaires";
+          errorMessage.error = 'FORBIDDEN';
+          break;
+        case 500:
+          errorMessage.message =
+            'Erreur serveur - Veuillez réessayer plus tard';
+          errorMessage.error = 'SERVER_ERROR';
+          break;
+      }
+
+      console.error("Erreur lors de la création de l'événement:", errorMessage);
+      throw errorMessage;
+    }
+
+    if (!data.success) {
+      throw new Error(
+        data.message || "Erreur lors de la création de l'événement"
+      );
+    }
+
+    return data.data;
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+      throw {
+        status: 0,
+        message:
+          'Impossible de se connecter au serveur. Vérifiez votre connexion internet.',
+        error: 'NETWORK_ERROR',
+      };
+    }
+
+    if (error.message === "Token d'authentification non disponible") {
+      throw {
+        status: 401,
+        message: error.message,
+        error: 'AUTH_ERROR',
+      };
+    }
+
+    throw error;
+  }
+};
+
+export const useCreateEvent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createEvent,
+    onSuccess: (data) => {
+      // Invalidation des queries pertinentes
+      queryClient.invalidateQueries(eventKeys.all);
+      queryClient.invalidateQueries(eventKeys.upcoming());
+      // Mise à jour optimiste du cache si nécessaire
+      queryClient.setQueryData(eventKeys.detail(data.event.id), data.event);
+    },
+    onError: (error) => {
+      console.error("Erreur lors de la création de l'événement:", error);
+    },
+  });
+};
+
+// Fonction pour récupérer les informations de l'utilisateur
+const fetchUserInfo = async () => {
+  try {
+    const token = await getFirebaseToken();
+
+    if (!token) {
+      throw new Error("Token d'authentification non disponible");
+    }
+
+    const response = await fetch(`${API_URL}/users/user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = {
+        status: response.status,
+        message: data.message || 'Une erreur est survenue',
+        error: data.error || 'UNKNOWN_ERROR',
+        details: data.details,
+      };
+
+      // Gestion spécifique des codes d'erreur
+      switch (response.status) {
+        case 401:
+          errorMessage.message = 'Non autorisé - Veuillez vous reconnecter';
+          errorMessage.error = 'UNAUTHORIZED';
+          break;
+        case 403:
+          errorMessage.message = 'Accès refusé';
+          errorMessage.error = 'FORBIDDEN';
+          break;
+        case 404:
+          errorMessage.message = "L'utilisateur n'a pas été trouvé";
+          errorMessage.error = 'USER_NOT_FOUND';
+          break;
+        case 500:
+          errorMessage.message =
+            'Erreur serveur - Veuillez réessayer plus tard';
+          errorMessage.error = 'SERVER_ERROR';
+          break;
+      }
+
+      console.error(
+        'Erreur lors de la récupération des informations utilisateur:',
+        errorMessage
+      );
+      throw errorMessage;
+    }
+
+    // Vérification de la structure de la réponse
+    if (!data.success || !data.data) {
+      throw new Error('Format de réponse invalide');
+    }
+
+    return data.data;
+  } catch (error) {
+    // Gestion des erreurs réseau
+    if (!error.isServerError) {
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        throw {
+          status: 0,
+          message:
+            'Impossible de se connecter au serveur. Vérifiez votre connexion internet.',
+          error: 'NETWORK_ERROR',
+        };
+      }
+
+      // Erreur lors de la récupération du token
+      if (error.message === "Token d'authentification non disponible") {
+        throw {
+          status: 401,
+          message: error.message,
+          error: 'AUTH_ERROR',
+        };
+      }
+    }
+
+    throw error;
+  }
+};
+
+// Hook React Query pour récupérer les informations de l'utilisateur
+export const useUserInfo = () => {
+  const { user } = useAuthStore();
+
+  return useQuery({
+    queryKey: userKeys.details(),
+    queryFn: fetchUserInfo,
+    enabled: !!user, // La requête ne s'exécute que si l'utilisateur est connecté
+    staleTime: 5 * 60 * 1000, // Cache valide pendant 5 minutes
+    retry: 2, // Nombre de tentatives en cas d'échec
+    select: (data) => {
+      // Vous pouvez transformer les données ici si nécessaire
+      return {
+        ...data,
+        // Exemple de transformation :
+        createdAt: data.createdAt ? new Date(data.createdAt) : null,
+        lastLogin: data.lastLogin ? new Date(data.lastLogin) : null,
+      };
+    },
+  });
 };
 
 // Modified transferTicket function with proper error handling and validation
@@ -279,7 +871,7 @@ export const useUserNotifications = () => {
     queryKey: eventKeys.userNotifications(),
     queryFn: fetchUserNotifications,
     enabled: !!user,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 2000,
   });
 };
 
@@ -344,7 +936,7 @@ export const useEventTicketCategories = (eventId) => {
     queryKey: eventKeys.ticketCategories(eventId),
     queryFn: () => fetchEventTicketCategories(eventId),
     enabled: !!eventId,
-    staleTime: 5 * 60 * 1000, // Cache valide pendant 5 minutes
+    staleTime: 2000, // Cache valide pendant 5 minutes
     select: (data) => {
       // Vous pouvez ajouter ici une transformation des données si nécessaire
       return data.map((category) => ({
@@ -606,7 +1198,7 @@ export const useEvent = (eventId) => {
   return useQuery({
     queryKey: eventKeys.detail(eventId),
     queryFn: () => fetchEventById(eventId),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 2000,
     enabled: !!eventId,
   });
 };

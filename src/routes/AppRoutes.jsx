@@ -9,6 +9,7 @@ import Layout from '../components/Layout';
 import ConfirmMailPage from '../pages/ConfirmMailPage';
 import ProtectedRoute from '../components/ProtectedRoute';
 import CategoryBilletPage from '../pages/CatergoryBilletPage';
+import NotFoundPage from '../pages/NotFoundPage';
 
 const AppRoutes = () => (
   <Routes>
@@ -18,17 +19,18 @@ const AppRoutes = () => (
       <Route path="/" element={<HomePage />} />
 
       {/* Routes protégées */}
-      {/* Changement ici : on utilise element={<ProtectedRoute />} */}
       <Route element={<ProtectedRoute />}>
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
     </Route>
-    {/* Route de confirmation d'email */}
-    <Route path="/dashboard" element={<EventDashboardPage />} />
+
+    <Route path="/dashboard/:id" element={<EventDashboardPage />} />
     <Route path="/confirm" element={<ConfirmMailPage />} />
+
+    {/* Ajoutez la route 404 en dernier */}
+    <Route path="*" element={<NotFoundPage />} />
   </Routes>
 );
-
 export default AppRoutes;

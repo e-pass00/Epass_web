@@ -27,42 +27,47 @@ import { useUserTickets } from '../features/events/api/queries';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-const StyledCard = styled(motion.div)(({ theme, type }) => ({
-  borderRadius: theme.spacing(2),
-  cursor: 'pointer',
-  position: 'relative',
-  overflow: 'visible',
-  height: '100%',
-  '&::before, &::after': {
-    content: '""',
-    position: 'absolute',
-    top: '50%',
-    width: '20px',
-    height: '20px',
-    borderRadius: '50%',
-    backgroundColor: '#131313',
-    transform: 'translateY(-50%)',
-    zIndex: 1,
-  },
-  '&::before': {
-    left: '-10px',
-  },
-  '&::after': {
-    right: '-10px',
-  },
-  ...(type === 'Carré Or' && {
-    background: 'linear-gradient(225deg, #FFD700, #FFA500);',
-  }),
-  ...(type === 'VIP' && {
-    background: 'linear-gradient(45deg, #4A0E4E, #81267D)',
-  }),
-  ...(type === 'VVIP' && {
-    background: 'linear-gradient(45deg, #4A0E4E, #81267D)',
-  }),
-  ...(type === 'Standard' && {
-    background: 'rgba(255, 255, 255, 0.07)',
-  }),
-}));
+const StyledCard = styled(motion.div)(({ theme, type }) => {
+  // Normaliser la catégorie en minuscules pour la comparaison
+  const normalizedType = type?.toLowerCase();
+
+  return {
+    borderRadius: theme.spacing(2),
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'visible',
+    height: '100%',
+    '&::before, &::after': {
+      content: '""',
+      position: 'absolute',
+      top: '50%',
+      width: '20px',
+      height: '20px',
+      borderRadius: '50%',
+      backgroundColor: '#131313',
+      transform: 'translateY(-50%)',
+      zIndex: 1,
+    },
+    '&::before': {
+      left: '-10px',
+    },
+    '&::after': {
+      right: '-10px',
+    },
+    ...(normalizedType === 'carré or' && {
+      background: 'linear-gradient(225deg, #FFD700, #FFA500)',
+    }),
+    ...(normalizedType === 'vip' && {
+      background: 'linear-gradient(45deg, #4A0E4E, #81267D)',
+    }),
+    ...(normalizedType === 'vvip' && {
+      background: 'linear-gradient(45deg, #4A0E4E, #81267D)',
+    }),
+    ...(normalizedType === 'standard' && {
+      background: 'rgba(255, 255, 255, 0.07)',
+    }),
+  };
+});
 
 const StickyHeader = styled(Box)(({ theme, scrolled }) => ({
   position: 'sticky',
@@ -382,11 +387,14 @@ const TicketsPage = () => {
                             size="small"
                             sx={{
                               bgcolor:
-                                ticket.categoryBillet === 'Carré Or'
+                                ticket.categoryBillet?.toLowerCase() ===
+                                'carré or'
                                   ? 'rgba(255, 215, 0, 1)'
-                                  : ticket.categoryBillet === 'VIP'
+                                  : ticket.categoryBillet?.toLowerCase() ===
+                                      'vip'
                                     ? 'rgba(0, 0, 0, 0.5)'
-                                    : ticket.categoryBillet === 'VVIP'
+                                    : ticket.categoryBillet?.toLowerCase() ===
+                                        'vvip'
                                       ? 'rgba(129, 38, 125, 1)'
                                       : 'rgba(255,255,255,0.2)',
                               color: 'white',

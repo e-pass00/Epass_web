@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { styled } from '@mui/material/styles';
 import {
@@ -22,10 +22,9 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import { useEvent } from '../features/events/api/queries';
 import { useEventTicketCategories } from '../features/events/api/queries';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import EpassLoader from '../components/EpassLoader';
-import useAuthStore from '../features/auth/stores/authStore';
+import PurchaseSummaryModal from '../components/PurchaseSummuryModal';
 
 const PageContainer = styled(Box)({
   backgroundColor: '#1a1a1a',
@@ -51,13 +50,13 @@ const StyledAppBar = styled(AppBar)(({ scrolled, theme }) => ({
   top: 0,
   zIndex: 1000,
 
-  // Comportement par défaut pour mobile
+  // Mobile behavior
   [theme.breakpoints.down('md')]: {
     backgroundColor: scrolled ? '#242424' : '#1a1a1a',
     boxShadow: scrolled ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
   },
 
-  // Nouveau comportement pour tablette et desktop
+  // Tablet and desktop behavior
   [theme.breakpoints.up('md')]: {
     backgroundColor: '#242424',
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -77,26 +76,27 @@ const HeaderTitle = styled(Typography)({
 
 const EventContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
-  gap: '16px',
-  padding: '16px',
+  gap: '12px',
+  padding: '12px',
+  marginBottom: '20px',
   [theme.breakpoints.up('md')]: {
-    gap: '32px',
-    padding: '32px',
+    gap: '24px',
+    padding: '24px',
     maxWidth: '1200px',
     margin: '0 auto',
   },
 }));
 
 const EventImage = styled(Box)(({ theme }) => ({
-  width: '120px',
-  height: '120px',
+  width: '100px',
+  height: '100px',
   borderRadius: '8px',
   overflow: 'hidden',
   flexShrink: 0,
   [theme.breakpoints.up('md')]: {
-    width: '300px',
-    height: '300px',
-    borderRadius: '16px',
+    width: '200px',
+    height: '200px',
+    borderRadius: '12px',
   },
   '& img': {
     width: '100%',
@@ -109,32 +109,34 @@ const EventInfo = styled(Box)(({ theme }) => ({
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
+  height: '100px',
   justifyContent: 'center',
   [theme.breakpoints.up('md')]: {
-    paddingLeft: '32px',
+    height: '200px',
+    paddingLeft: '24px',
   },
 }));
 
 const EventTitle = styled(Typography)(({ theme }) => ({
-  fontSize: '24px',
+  fontSize: '20px',
   fontWeight: '600',
-  marginBottom: '8px',
+  marginBottom: '4px',
   [theme.breakpoints.up('md')]: {
-    fontSize: '36px',
-    marginBottom: '16px',
+    fontSize: '28px',
+    marginBottom: '8px',
   },
 }));
 
 const EventDetail = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: '6px',
   color: 'rgba(255, 255, 255, 0.7)',
-  fontSize: '14px',
-  marginBottom: '4px',
+  fontSize: '12px',
+  marginBottom: '2px',
   [theme.breakpoints.up('md')]: {
-    fontSize: '16px',
-    marginBottom: '8px',
+    fontSize: '14px',
+    marginBottom: '4px',
   },
 }));
 
@@ -330,7 +332,7 @@ const ContinueButton = styled(Button)(({ theme }) => ({
   backgroundColor: '#3ECF8E',
   color: '#242424',
   borderRadius: '24px',
-  padding: '10px 24px',
+  padding: '8px 20px',
   textTransform: 'none',
   fontSize: '16px',
   width: 'auto',
@@ -344,20 +346,32 @@ const ContinueButton = styled(Button)(({ theme }) => ({
 }));
 
 const CategoryBilletPage = () => {
+  const [openModal, setOpenModal] = useState(false);
+  const [error, setError] = useState(null);
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, loading, openModal } = useAuthStore();
-  const { data: event, isLoading: isEventLoading } = useEvent(id);
-  const { data: ticketCategories, isLoading: isCategoriesLoading } =
-    useEventTicketCategories(id);
+
+  const {
+    data: event,
+    isLoading: isEventLoading,
+    error: eventError,
+  } = useEvent(id);
+
+  const {
+    data: ticketCategories,
+    isLoading: isCategoriesLoading,
+    error: categoriesError,
+  } = useEventTicketCategories(id);
 
   const [quantities, setQuantities] = useState({});
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    if (ticketCategories) {
+    if (ticketCategories && Array.isArray(ticketCategories)) {
       const initialQuantities = ticketCategories.reduce((acc, category) => {
-        acc[category.id] = 0;
+        if (category && category.id) {
+          acc[category.id] = 0;
+        }
         return acc;
       }, {});
       setQuantities(initialQuantities);
@@ -366,8 +380,7 @@ const CategoryBilletPage = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      const offset = window.scrollY;
-      setScrolled(offset > 10);
+      setScrolled(window.scrollY > 10);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -375,38 +388,55 @@ const CategoryBilletPage = () => {
   }, []);
 
   const totalTickets = useMemo(() => {
+    if (!quantities || typeof quantities !== 'object') return 0;
     return Object.values(quantities).reduce(
-      (sum, quantity) => sum + quantity,
+      (sum, quantity) => sum + (Number.isInteger(quantity) ? quantity : 0),
       0
     );
   }, [quantities]);
 
   const totalPrice = useMemo(() => {
-    if (!ticketCategories) return 0;
+    if (!ticketCategories || !Array.isArray(ticketCategories) || !quantities)
+      return 0;
+
     return Object.entries(quantities).reduce((sum, [categoryId, quantity]) => {
-      const category = ticketCategories.find((cat) => cat.id === categoryId);
-      return sum + (category ? quantity * category.price : 0);
+      const category = ticketCategories.find((cat) => cat?.id === categoryId);
+      if (
+        !category ||
+        !Number.isInteger(quantity) ||
+        !Number.isFinite(category.price)
+      ) {
+        return sum;
+      }
+      return sum + quantity * category.price;
     }, 0);
   }, [quantities, ticketCategories]);
 
-  const updateQuantity = (categoryId, delta) => {
-    const category = ticketCategories.find((cat) => cat.id === categoryId);
+  const updateQuantity = useCallback(
+    (categoryId, delta) => {
+      if (!ticketCategories || !Array.isArray(ticketCategories)) return;
 
-    if (!category) return;
+      const category = ticketCategories.find((cat) => cat?.id === categoryId);
+      if (!category || !Number.isInteger(category.availableQuantity)) return;
 
-    setQuantities((prev) => {
-      const newQuantity = Math.max(
-        0,
-        Math.min(prev[categoryId] + delta, category.availableQuantity)
-      );
-      return {
-        ...prev,
-        [categoryId]: newQuantity,
-      };
-    });
-  };
+      setQuantities((prev) => {
+        const currentQuantity = prev[categoryId] || 0;
+        const newQuantity = Math.max(
+          0,
+          Math.min(currentQuantity + delta, category.availableQuantity)
+        );
+        return {
+          ...prev,
+          [categoryId]: newQuantity,
+        };
+      });
+    },
+    [ticketCategories]
+  );
 
-  const getGradientByCategory = (categoryName) => {
+  const getGradientByCategory = useCallback((categoryName) => {
+    if (!categoryName || typeof categoryName !== 'string') return undefined;
+
     const upperCaseName = categoryName.toUpperCase();
     if (upperCaseName.includes('VIP') || upperCaseName === 'VVIP') {
       return 'linear-gradient(45deg, #4A0E4E, #81267D)';
@@ -415,77 +445,127 @@ const CategoryBilletPage = () => {
       return 'linear-gradient(225deg, #FFD700, #FFA500)';
     }
     return undefined;
-  };
+  }, []);
 
-  const renderTicket = (category) => {
-    const isComplete = category.availableQuantity === 0;
-    const gradientBackground = getGradientByCategory(category.name);
+  const formatEventDate = useCallback((dateString) => {
+    try {
+      const date = parseISO(dateString);
+      if (!isValid(date)) throw new Error('Invalid date');
+      return format(date, 'EEE, d MMMM', { locale: fr });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return 'Date invalide';
+    }
+  }, []);
 
+  const formatEventTime = useCallback((dateString) => {
+    try {
+      const date = parseISO(dateString);
+      if (!isValid(date)) throw new Error('Invalid date');
+      return format(date, 'HH:mm');
+    } catch (error) {
+      console.error('Time formatting error:', error);
+      return '--:--';
+    }
+  }, []);
+
+  const renderTicket = useCallback(
+    (category) => {
+      if (!category || !category.id) return null;
+
+      const isComplete = category.availableQuantity === 0;
+      const gradientBackground = getGradientByCategory(category.name);
+
+      return (
+        <Grid item xs={12} md={6} lg={6} key={category.id}>
+          <TicketCard isComplete={isComplete}>
+            <TicketLeft>
+              <TicketIcon customGradient={gradientBackground}>
+                <ConfirmationNumberIcon
+                  sx={{ fontSize: { xs: '24px', md: '28px' }, color: 'white' }}
+                />
+              </TicketIcon>
+              <TicketContent>
+                <Typography
+                  sx={{
+                    fontSize: { xs: '16px', md: '20px' },
+                    fontWeight: '500',
+                  }}
+                >
+                  {category.name || 'Sans nom'}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: { xs: '14px', md: '16px' },
+                    color: 'rgba(255, 255, 255, 0.5)',
+                  }}
+                >
+                  Entrée {category.name || 'Standard'}
+                </Typography>
+                {isComplete ? (
+                  <CompleteBadge>Complet</CompleteBadge>
+                ) : (
+                  <QuantityControl>
+                    <IconButton
+                      size="small"
+                      onClick={() => updateQuantity(category.id, -1)}
+                      disabled={!quantities[category.id]}
+                    >
+                      <RemoveIcon
+                        sx={{ fontSize: { xs: '16px', md: '20px' } }}
+                      />
+                    </IconButton>
+                    <Typography
+                      sx={{
+                        fontSize: { xs: '15px', md: '18px' },
+                        minWidth: '20px',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {quantities[category.id] || 0}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => updateQuantity(category.id, 1)}
+                      disabled={
+                        quantities[category.id] >= category.availableQuantity
+                      }
+                    >
+                      <AddIcon sx={{ fontSize: { xs: '16px', md: '20px' } }} />
+                    </IconButton>
+                  </QuantityControl>
+                )}
+              </TicketContent>
+            </TicketLeft>
+            <TicketDividerContainer>
+              <DottedLine />
+            </TicketDividerContainer>
+            <TicketRight>
+              <VerticalPrice>
+                {(category.price || 0).toLocaleString()}{' '}
+                <span className="currency">XAF</span>
+              </VerticalPrice>
+            </TicketRight>
+          </TicketCard>
+        </Grid>
+      );
+    },
+    [quantities, updateQuantity, getGradientByCategory]
+  );
+
+  useEffect(() => {
+    if (eventError || categoriesError) {
+      setError(eventError || categoriesError);
+    }
+  }, [eventError, categoriesError]);
+
+  if (error) {
     return (
-      <Grid item xs={12} md={6} lg={6} key={category.id}>
-        <TicketCard isComplete={isComplete}>
-          <TicketLeft>
-            <TicketIcon customGradient={gradientBackground}>
-              <ConfirmationNumberIcon
-                sx={{ fontSize: { xs: '24px', md: '28px' }, color: 'white' }}
-              />
-            </TicketIcon>
-            <TicketContent>
-              <Typography
-                sx={{ fontSize: { xs: '16px', md: '20px' }, fontWeight: '500' }}
-              >
-                {category.name}
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: { xs: '14px', md: '16px' },
-                  color: 'rgba(255, 255, 255, 0.5)',
-                }}
-              >
-                Entrée {category.name}
-              </Typography>
-              {isComplete ? (
-                <CompleteBadge>Complet</CompleteBadge>
-              ) : (
-                <QuantityControl>
-                  <IconButton
-                    size="small"
-                    onClick={() => updateQuantity(category.id, -1)}
-                  >
-                    <RemoveIcon sx={{ fontSize: { xs: '16px', md: '20px' } }} />
-                  </IconButton>
-                  <Typography
-                    sx={{
-                      fontSize: { xs: '15px', md: '18px' },
-                      minWidth: '20px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {quantities[category.id]}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => updateQuantity(category.id, 1)}
-                  >
-                    <AddIcon sx={{ fontSize: { xs: '16px', md: '20px' } }} />
-                  </IconButton>
-                </QuantityControl>
-              )}
-            </TicketContent>
-          </TicketLeft>
-          <TicketDividerContainer>
-            <DottedLine />
-          </TicketDividerContainer>
-          <TicketRight>
-            <VerticalPrice>
-              {category.price.toLocaleString()}{' '}
-              <span className="currency">XAF</span>
-            </VerticalPrice>
-          </TicketRight>
-        </TicketCard>
-      </Grid>
+      <Alert severity="error" sx={{ m: 2 }}>
+        Une erreur est survenue: {error.message}
+      </Alert>
     );
-  };
+  }
 
   if (isEventLoading || isCategoriesLoading) {
     return (
@@ -497,12 +577,14 @@ const CategoryBilletPage = () => {
 
   if (!event || !ticketCategories) {
     return (
-      <Alert severity="error">Erreur lors du chargement des favoris</Alert>
+      <Alert severity="error" sx={{ m: 2 }}>
+        Aucune information disponible
+      </Alert>
     );
   }
 
-  const startDate = parseISO(event.startDate);
-  const endDate = parseISO(event.endDate);
+  const startDate = event.startDate ? parseISO(event.startDate) : null;
+  const endDate = event.endDate ? parseISO(event.endDate) : null;
 
   return (
     <PageContainer>
@@ -522,24 +604,38 @@ const CategoryBilletPage = () => {
       <ContentContainer>
         <EventContainer>
           <EventImage>
-            <img src={event.coverImage} alt={event.name} />
+            <img
+              src={event.coverImage || '/placeholder-image.jpg'}
+              alt={event.name || 'Événement'}
+              onError={(e) => {
+                e.target.src = '/placeholder-image.jpg';
+              }}
+            />
           </EventImage>
           <EventInfo>
-            <EventTitle>{event.name}</EventTitle>
-            <EventDetail>
-              <CalendarTodayIcon
-                sx={{ fontSize: { xs: '16px', md: '20px' } }}
-              />
-              {format(startDate, 'EEE, d MMMM', { locale: fr })}
-            </EventDetail>
-            <EventDetail>
-              <AccessTimeIcon sx={{ fontSize: { xs: '16px', md: '20px' } }} />
-              {format(startDate, 'HH:mm')} - {format(endDate, 'HH:mm')}
-            </EventDetail>
-            <EventDetail>
-              <LocationOnIcon sx={{ fontSize: { xs: '16px', md: '20px' } }} />
-              {event.location.name}, {event.location.city}
-            </EventDetail>
+            <EventTitle>{event.name || 'Événement sans nom'}</EventTitle>
+            {startDate && (
+              <EventDetail>
+                <CalendarTodayIcon
+                  sx={{ fontSize: { xs: '16px', md: '20px' } }}
+                />
+                {formatEventDate(event.startDate)}
+              </EventDetail>
+            )}
+            {startDate && (
+              <EventDetail>
+                <AccessTimeIcon sx={{ fontSize: { xs: '16px', md: '20px' } }} />
+                {formatEventTime(event.startDate)}
+                {endDate && ` - ${formatEventTime(event.endDate)}`}
+              </EventDetail>
+            )}
+            {event.location && (
+              <EventDetail>
+                <LocationOnIcon sx={{ fontSize: { xs: '16px', md: '20px' } }} />
+                {event.location.name || 'Lieu non spécifié'}
+                {event.location.city && `, ${event.location.city}`}
+              </EventDetail>
+            )}
           </EventInfo>
         </EventContainer>
 
@@ -556,15 +652,27 @@ const CategoryBilletPage = () => {
         </Typography>
 
         <TicketsGrid container spacing={{ xs: 2, md: 3 }}>
-          {ticketCategories.map(renderTicket)}
+          {Array.isArray(ticketCategories) &&
+            ticketCategories.map(renderTicket)}
         </TicketsGrid>
+
+        {openModal && (
+          <PurchaseSummaryModal
+            open={openModal}
+            onClose={() => setOpenModal(false)}
+            event={event}
+            tickets={ticketCategories}
+            quantities={quantities}
+            totalPrice={totalPrice}
+          />
+        )}
 
         <TotalSection visible={totalTickets > 0}>
           <TotalInfo>
             <Typography
               sx={{
                 color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: { xs: '14px', md: '16px' },
+                fontSize: { xs: '12px', md: '16px' },
               }}
             >
               Nombre d'e-pass: {totalTickets}
@@ -572,7 +680,7 @@ const CategoryBilletPage = () => {
             <Typography
               sx={{
                 fontWeight: '500',
-                fontSize: { xs: '18px', md: '24px' },
+                fontSize: { xs: '16px', md: '24px' },
               }}
             >
               Total:{' '}
@@ -580,14 +688,18 @@ const CategoryBilletPage = () => {
                 style={{
                   color: '#3ECF8E',
                   fontFamily: 'Montserrat',
-                  fontWeight: 'bold',
+                  fontWeight: '510',
                 }}
               >
                 {totalPrice.toLocaleString()} XAF
               </span>
             </Typography>
           </TotalInfo>
-          <ContinueButton variant="contained" size="large">
+          <ContinueButton
+            onClick={() => setOpenModal(true)}
+            variant="contained"
+            size="large"
+          >
             Continuer
           </ContinueButton>
         </TotalSection>

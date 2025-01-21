@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useUserNotifications } from '../features/events/api/queries';
 
-// Styled Components restent les mêmes
+// Styled Components
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
     backgroundColor: '#131313',
@@ -129,18 +129,29 @@ const NotificationModal = ({ open, onClose }) => {
       label: 'Paiements',
       icon: <CreditCard size={20} />,
       color: '#3ECF8E',
-      key: 'payment',
+      key: 'CONFIRM_PAYMENT',
     },
   ];
 
   const formatDate = useCallback((timestamp) => {
-    const date = new Date(timestamp);
-    return new Intl.DateTimeFormat('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-    }).format(date);
+    // Validation du timestamp
+    if (!timestamp || isNaN(new Date(timestamp).getTime())) {
+      console.warn('Invalid timestamp received:', timestamp);
+      return 'Date invalide';
+    }
+
+    try {
+      const date = new Date(timestamp);
+      return new Intl.DateTimeFormat('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+      }).format(date);
+    } catch (error) {
+      console.error('Error formatting date:', error, 'Timestamp:', timestamp);
+      return 'Date invalide';
+    }
   }, []);
 
   const handleTabChange = (event, newValue) => {
@@ -148,14 +159,20 @@ const NotificationModal = ({ open, onClose }) => {
   };
 
   // Organiser les notifications par type
-  const organizedNotifications =
-    notifications?.reduce((acc, notification) => {
-      if (!acc[notification.type]) {
-        acc[notification.type] = [];
-      }
-      acc[notification.type].push(notification);
+  const organizedNotifications = notifications?.reduce((acc, notification) => {
+    // Vérification de la validité de la notification
+    if (!notification || typeof notification !== 'object') {
+      console.warn('Invalid notification object:', notification);
       return acc;
-    }, {}) || {};
+    }
+
+    const type = notification.type || 'unknown';
+    if (!acc[type]) {
+      acc[type] = [];
+    }
+    acc[type].push(notification);
+    return acc;
+  }, {}) || {};
 
   // Vérifier s'il y a des notifications non lues pour chaque type
   const hasUnreadNotifications = (type) => {
@@ -278,10 +295,7 @@ const NotificationModal = ({ open, onClose }) => {
                         >
                           C'est calme par ici
                         </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{ textAlign: 'center' }}
-                        >
+                        <Typography variant="body2" sx={{ textAlign: 'center' }}>
                           Vous n'avez pas encore de {tab.label.toLowerCase()} à
                           consulter.
                         </Typography>
@@ -308,10 +322,7 @@ const NotificationModal = ({ open, onClose }) => {
                             >
                               {notification.title}
                             </Typography>
-                            <Typography
-                              variant="body2"
-                              sx={{ color: '#F1F1F1' }}
-                            >
+                            <Typography variant="body2" sx={{ color: '#F1F1F1' }}>
                               {notification.label}
                             </Typography>
                             <Box
@@ -322,10 +333,7 @@ const NotificationModal = ({ open, onClose }) => {
                                 mt: 1,
                               }}
                             >
-                              <Typography
-                                variant="caption"
-                                sx={{ color: '#666' }}
-                              >
+                              <Typography variant="caption" sx={{ color: '#666' }}>
                                 {formatDate(notification.createdAt)}
                               </Typography>
                               {!notification.read && (

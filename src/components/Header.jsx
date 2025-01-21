@@ -14,16 +14,27 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import KeyboardArrowDownOutlinedIcon from '@mui/icons-material/KeyboardArrowDownOutlined';
-import { SearchIcon, BellIcon } from 'lucide-react';
+import {
+  SearchIcon,
+  BellIcon,
+  User,
+  LogOut,
+  LogIn,
+  LogOutIcon,
+} from 'lucide-react';
 import SearchBar from './SearchBar';
 import EventCategories from './EventCategories';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import useSearchStore from '../features/events/stores/useSearchStore';
 import useNotificationStore from '../features/events/stores/useNotificationStore';
-import { useUserNotifications } from '../features/events/api/queries';
+import {
+  useUserNotifications,
+  useUserInfo,
+} from '../features/events/api/queries';
 import SearchModal from './SearchModal';
 import NotificationModal from './NotificationModal';
 import logo from '../assets/logo_epass.svg';
+import useAuthStore from '../features/auth/stores/authStore';
 
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
   backgroundColor: '#131313',
@@ -54,16 +65,76 @@ const StyledAvatar = styled(Avatar)(({ theme, isMobile }) => ({
   fontSize: isMobile ? '0.9rem' : '1rem',
 }));
 
+const StyledMenu = styled(Menu)(({ theme }) => ({
+  '& .MuiPaper-root': {
+    backgroundColor: '#383838',
+    borderRadius: '12px',
+    border: '1px solid #292828',
+    width: '180px',
+    overflow: 'visible',
+    marginTop: '8px',
+    '& .MuiList-root': {
+      padding: '8px',
+    },
+    '&::before': {
+      content: '""',
+      display: 'block',
+      position: 'absolute',
+      top: -6,
+      right: 24,
+      width: 12,
+      height: 12,
+      backgroundColor: '#383838',
+      transform: 'rotate(45deg)',
+      zIndex: 0,
+    },
+  },
+  '& .MuiMenuItem-root': {
+    borderRadius: '8px',
+    padding: '12px 16px',
+    color: '#F1F1F1',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    transition: 'all 0.2s ease',
+
+    '&:hover': {
+      backgroundColor: 'transparent',
+      '& .icon': {
+        color: '#3ECF8E',
+      },
+      '& .text': {
+        color: '#3ECF8E',
+      },
+    },
+
+    '& .icon': {
+      color: theme.palette.primary.main,
+      transition: 'color 0.2s ease',
+    },
+
+    '& .text': {
+      transition: 'color 0.2s ease',
+    },
+  },
+}));
+
 const Header = () => {
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [menuAnchor, setMenuAnchor] = useState(null);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
   const theme = useTheme();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const location = useLocation();
   const { openSearchModal } = useSearchStore();
   const isMainRoute = location.pathname === '/';
 
-  // Notification handling
+  // Auth store
+  const { isAuthenticated, logout, openModal } = useAuthStore();
+
+  // Récupération des informations de l'utilisateur
+  const { data: userData } = useUserInfo();
+
   const { data: notifications, isLoading: isLoadingNotifications } =
     useUserNotifications();
   const { unreadCount, setUnreadCount, setNotifications } =
@@ -79,24 +150,70 @@ const Header = () => {
     }
   }, [notifications, setUnreadCount, setNotifications]);
 
-  const handleClick = (event) => setAnchorEl(event.currentTarget);
-  const handleClose = () => setAnchorEl(null);
+  // Fonction pour obtenir l'initiale de l'utilisateur
+  const getUserInitial = () => {
+    if (!userData || !userData.username) return '?';
+    return userData.username.charAt(0).toUpperCase();
+  };
+
+  const handleMenuOpen = (event) => {
+    setMenuAnchor(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
 
   const handleNotificationClick = () => {
     setNotificationModalOpen(true);
   };
 
+  const handleProfileClick = () => {
+    handleMenuClose();
+    if (isAuthenticated()) {
+      navigate('/profile');
+    } else {
+      openModal('/profile'); // Le modal s'ouvre avec la redirection vers /profile après connexion
+    }
+  };
+
+  const handleAuthAction = async () => {
+    handleMenuClose();
+    if (isAuthenticated()) {
+      try {
+        await logout();
+        // Ouvrir le modal de connexion immédiatement après la déconnexion
+        openModal();
+        navigate('/');
+      } catch (error) {
+        console.error('Erreur lors de la déconnexion:', error);
+      }
+    } else {
+      openModal();
+    }
+  };
+
   const menuItems = useMemo(
     () => [
-      { label: 'Profile', icon: <Avatar /> },
-      { label: 'My account', icon: <Avatar /> },
-      { label: 'Logout', icon: <Avatar /> },
+      {
+        label: 'Profile',
+        icon: <User size={18} className="icon" />,
+        onClick: handleProfileClick,
+      },
+      {
+        label: isAuthenticated() ? 'Déconnexion' : 'Connexion',
+        icon: isAuthenticated() ? (
+          <LogOutIcon size={18} className="icon" />
+        ) : (
+          <LogIn size={18} className="icon" />
+        ),
+        onClick: handleAuthAction,
+      },
     ],
-    []
+    [isAuthenticated()]
   );
 
   const iconStyle = { fontSize: isMobile ? 22 : 24 };
-
   const AppBarComponent = isMainRoute ? MainRouteAppBar : StyledAppBar;
 
   const headerContent = (
@@ -141,26 +258,29 @@ const Header = () => {
               <SearchIcon size={22} />
             </IconButton>
           )}
-          <IconButton
-            color="inherit"
-            aria-label="notifications"
-            sx={{ marginLeft: '10px' }}
-            onClick={handleNotificationClick}
-            disabled={isLoadingNotifications}
-          >
-            <StyledBadge
-              badgeContent={unreadCount}
-              max={99}
-              invisible={unreadCount === 0}
+          {isAuthenticated() && (
+            <IconButton
+              color="inherit"
+              aria-label="notifications"
+              sx={{ marginLeft: '10px' }}
+              onClick={handleNotificationClick}
+              disabled={isLoadingNotifications}
             >
-              <BellIcon size={22} />
-            </StyledBadge>
-          </IconButton>
+              <StyledBadge
+                badgeContent={unreadCount}
+                max={99}
+                invisible={unreadCount === 0}
+              >
+                <BellIcon size={22} />
+              </StyledBadge>
+            </IconButton>
+          )}
           <IconButton
-            onClick={handleClick}
+            onClick={handleMenuOpen}
             size="small"
-            aria-controls="account-menu"
+            aria-controls={Boolean(menuAnchor) ? 'account-menu' : undefined}
             aria-haspopup="true"
+            aria-expanded={Boolean(menuAnchor) ? 'true' : undefined}
           >
             <StyledAvatar
               sx={{
@@ -169,7 +289,7 @@ const Header = () => {
               }}
               isMobile={isMobile}
             >
-              M
+              {isAuthenticated() ? getUserInitial() : '?'}
             </StyledAvatar>
             {!isMobile && <KeyboardArrowDownOutlinedIcon sx={iconStyle} />}
           </IconButton>
@@ -179,54 +299,47 @@ const Header = () => {
       {!isMobile && <SearchBar />}
       <EventCategories />
 
-      <Menu
-        anchorEl={anchorEl}
-        id="account-menu"
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-        onClick={handleClose}
-        PaperProps={{
-          elevation: 0,
-          sx: {
-            overflow: 'visible',
-            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-            mt: 1.5,
-            '& .MuiAvatar-root': {
-              width: 32,
-              height: 32,
-              ml: -0.5,
-              mr: 1,
+      {menuAnchor && (
+        <StyledMenu
+          id="account-menu"
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+          keepMounted={false}
+          slotProps={{
+            paper: {
+              elevation: 0,
+              sx: {
+                overflow: 'visible',
+                mt: 1.5,
+                '& .MuiAvatar-root': {
+                  width: 32,
+                  height: 32,
+                  ml: -0.5,
+                  mr: 1,
+                },
+              },
             },
-            '&:before': {
-              content: '""',
-              display: 'block',
-              position: 'absolute',
-              top: 0,
-              right: 14,
-              width: 10,
-              height: 10,
-              bgcolor: 'background.paper',
-              transform: 'translateY(-50%) rotate(45deg)',
-              zIndex: 0,
-            },
-          },
-        }}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-      >
-        {menuItems.map((item, index) => (
-          <MenuItem key={index} onClick={handleClose}>
-            {item.icon}
-            {item.label}
-          </MenuItem>
-        ))}
-      </Menu>
+          }}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        >
+          {menuItems.map((item, index) => (
+            <MenuItem key={index} onClick={item.onClick}>
+              {item.icon}
+              <Typography className="text">{item.label}</Typography>
+            </MenuItem>
+          ))}
+        </StyledMenu>
+      )}
     </>
   );
 
   return (
     <>
-      <AppBarComponent position="fixed">{headerContent}</AppBarComponent>
+      <AppBarComponent position="fixed" sx={{ right: 0 }}>
+        {headerContent}
+      </AppBarComponent>
       <SearchModal />
       <NotificationModal
         open={notificationModalOpen}

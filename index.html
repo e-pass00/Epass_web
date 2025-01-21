@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -13,6 +13,39 @@
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      body {
+        overflow-x: hidden;
+      }
+      /* Appliquez ces styles dans votre fichier CSS global ou dans le composant racine */
+
+      /* Barre de défilement principale */
+      ::-webkit-scrollbar {
+        width: 1px; /* Largeur de la barre de défilement */
+      }
+
+      /* Track (la piste de la barre de défilement) */
+      ::-webkit-scrollbar-track {
+        background: #131313; /* Couleur de fond qui correspond à votre thème sombre */
+      }
+
+      /* Handle (la "poignée" de la barre de défilement) */
+      ::-webkit-scrollbar-thumb {
+        background: #131313; /* Utilise la couleur de votre thème */
+        border-radius: 3px;
+      }
+
+      /* Handle on hover */
+      ::-webkit-scrollbar-thumb:hover {
+        background: #131313; /* Version plus foncée de votre couleur principale */
+      }
+
+      /* Pour Firefox */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #131313 #131313;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

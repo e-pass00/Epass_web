@@ -1,7 +1,10 @@
 import React from 'react';
 import { Card, Typography } from '@mui/material';
-import { Calendar, Lock, CreditCard, Ticket, Award } from 'lucide-react';
+import { Calendar, Lock, CreditCard, Award } from 'lucide-react';
 import styled from 'styled-components';
+import PersonalInfoModal from './PersonalInfoModal';
+import EventManagementModal from './EventManagementModal';
+import { useUserInfo } from '../features/events/api/queries';
 
 const ProfileContainer = styled.div`
   color: white;
@@ -42,6 +45,11 @@ const ContentGrid = styled.div`
     grid-template-columns: 300px 1fr;
     gap: 4rem;
   }
+
+  @media (min-width: 1056px) and (max-width: 1200px) {
+    grid-template-columns: 250px 1fr;
+    gap: 3rem;
+  }
 `;
 
 const ProfileSection = styled.div`
@@ -54,6 +62,10 @@ const ProfileSection = styled.div`
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     padding-right: 2rem;
   }
+
+  @media (min-width: 1056px) and (max-width: 1200px) {
+    padding-right: 1.5rem;
+  }
 `;
 
 const ImageWrapper = styled.div`
@@ -63,12 +75,19 @@ const ImageWrapper = styled.div`
   border-radius: 50%;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  background: #14b8a6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: white;
+  text-transform: uppercase;
 
   &::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(79, 209, 197, 0.2), transparent);
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), transparent);
     border-radius: 50%;
   }
 `;
@@ -80,7 +99,7 @@ const ProfileImage = styled.img`
 `;
 
 const Badge = styled.div`
-  background: linear-gradient(135deg, #4fd1c5, #38b2ac);
+  background: #14b8a6;
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -107,7 +126,7 @@ const StatItem = styled.div`
 const StatValue = styled(Typography)`
   font-size: 1.5rem !important;
   font-weight: 600 !important;
-  color: #4fd1c5 !important;
+  color: #14b8a6 !important;
 `;
 
 const StatLabel = styled(Typography)`
@@ -117,56 +136,108 @@ const StatLabel = styled(Typography)`
 
 const MenuGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 1.25rem;
+  align-content: start;
+  height: 100%;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 769px) and (max-width: 1055px) {
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 1056px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 `;
 
 const MenuItem = styled.div`
   background: rgba(255, 255, 255, 0.03);
-  padding: 1rem;
-  border-radius: 16px;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  height: 56px;
+  min-width: 200px;
 
   &:hover {
     background: rgba(255, 255, 255, 0.06);
     transform: translateY(-2px);
   }
+
+  @media (min-width: 769px) and (max-width: 1055px) {
+    max-width: 100%;
+  }
 `;
 
 const IconWrapper = styled.div`
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(79, 209, 197, 0.1);
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(20, 184, 166, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4fd1c5;
+  color: #14b8a6;
+`;
+
+const MenuText = styled(Typography)`
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const CreativeProfile = () => {
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isEventModalOpen, setIsEventModalOpen] = React.useState(false);
+  const { data: user, isLoading } = useUserInfo();
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  const isOrganizer = user?.role === 'organisateur';
+
   const menuItems = [
-    { icon: Calendar, label: "Gestion d'événements" },
-    { icon: Lock, label: 'Information personnelle' },
-    { icon: CreditCard, label: 'Paiements ' },
-    { icon: Ticket, label: 'E-pass' },
+    ...(isOrganizer
+      ? [
+          {
+            icon: Calendar,
+            label: "Gestion d'événements",
+            onClick: () => setIsEventModalOpen(true),
+          },
+        ]
+      : []),
+    {
+      icon: Lock,
+      label: 'Information personnelle',
+      onClick: () => setIsModalOpen(true),
+    },
+    { icon: CreditCard, label: 'Paiements' },
   ];
+
+  const renderProfileImage = () => {
+    if (isOrganizer && user.profilePicture) {
+      return <ProfileImage src={user.profilePicture} alt="Profile" />;
+    }
+    return user?.username?.[0] || 'U';
+  };
 
   return (
     <ProfileContainer>
       <StyledCard>
         <ContentGrid>
           <ProfileSection>
-            <ImageWrapper>
-              <ProfileImage
-                src="/api/placeholder/120/120"
-                alt="Event profile"
-              />
-            </ImageWrapper>
+            <ImageWrapper>{renderProfileImage()}</ImageWrapper>
 
             <div style={{ textAlign: 'center' }}>
               <Typography
@@ -178,38 +249,50 @@ const CreativeProfile = () => {
                   fontSize: '1.25rem',
                 }}
               >
-                Monarch Event
+                {user?.username || 'User'}
               </Typography>
-              <Badge>
-                <Award size={14} />
-                Organisateur
-              </Badge>
+              {isOrganizer && (
+                <Badge>
+                  <Award size={14} />
+                  Organisateur
+                </Badge>
+              )}
             </div>
 
-            <Stats>
-              <StatItem>
-                <StatValue variant="h6">10</StatValue>
-                <StatLabel variant="body2">Events</StatLabel>
-              </StatItem>
-              <StatItem>
-                <StatValue variant="h6">4.3</StatValue>
-                <StatLabel variant="body2">Notes</StatLabel>
-              </StatItem>
-            </Stats>
+            {isOrganizer && (
+              <Stats>
+                <StatItem>
+                  <StatValue variant="h6">10</StatValue>
+                  <StatLabel variant="body2">Events</StatLabel>
+                </StatItem>
+                <StatItem>
+                  <StatValue variant="h6">4.3</StatValue>
+                  <StatLabel variant="body2">Notes</StatLabel>
+                </StatItem>
+              </Stats>
+            )}
           </ProfileSection>
 
           <MenuGrid>
             {menuItems.map((item, index) => (
-              <MenuItem key={index}>
+              <MenuItem key={index} onClick={item.onClick}>
                 <IconWrapper>
-                  <item.icon size={20} />
+                  <item.icon size={18} />
                 </IconWrapper>
-                <Typography style={{ color: 'white' }}>{item.label}</Typography>
+                <MenuText>{item.label}</MenuText>
               </MenuItem>
             ))}
           </MenuGrid>
         </ContentGrid>
       </StyledCard>
+      <PersonalInfoModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
+      <EventManagementModal
+        open={isEventModalOpen}
+        onClose={() => setIsEventModalOpen(false)}
+      />
     </ProfileContainer>
   );
 };

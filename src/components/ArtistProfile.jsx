@@ -29,6 +29,8 @@ import {
   Check,
   AttachMoney,
   FavoriteBorder,
+  QueryBuilder,
+  Map as MapIcon,
 } from '@mui/icons-material';
 import styled, { keyframes, css } from 'styled-components';
 import { Video, Image } from 'lucide-react';
@@ -39,7 +41,30 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import useAuthStore from '../features/auth/stores/authStore';
 
-// Animation keyframes
+// Default values
+const DEFAULT_EVENT = {
+  id: '',
+  name: 'Événement sans nom',
+  description: 'Aucune description disponible',
+  location: {
+    city: 'Ville non spécifiée',
+    name: 'Lieu non spécifié',
+    coordinates: {
+      latitude: null,
+      longitude: null,
+    },
+  },
+  organizerName: 'Organisateur inconnu',
+  organizerProfilePicture: '',
+  startDate: new Date().toISOString(),
+  endDate: new Date().toISOString(),
+  coverImage: '/api/placeholder/400/300',
+  coverVideo: null,
+  categoriesBillets: [],
+  interestedId: [],
+};
+
+// Animations
 const pulseAnimation = keyframes`
   0% { transform: scale(1); }
   50% { transform: scale(1.2); }
@@ -69,6 +94,22 @@ const StyledIconButton = styled(IconButton)`
   transition: all 0.3s ease;
   &.liked {
     animation: ${pulseAnimation} 0.3s ease;
+  }
+`;
+
+const MapButton = styled(IconButton)`
+  background-color: #3ecf8e !important;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #45a49a !important;
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 `;
 
@@ -140,10 +181,34 @@ const ExitButton = styled.button`
   }
 `;
 
-const ArtistProfile = ({ event }) => {
+// Helper functions
+const formatDate = (dateString) => {
+  try {
+    return format(new Date(dateString), 'EEE, d MMMM', { locale: fr });
+  } catch (error) {
+    console.error('Date formatting error:', error);
+    return 'Date non spécifiée';
+  }
+};
+
+const formatTime = (dateString) => {
+  try {
+    return format(new Date(dateString), 'HH:mm');
+  } catch (error) {
+    console.error('Time formatting error:', error);
+    return '--:--';
+  }
+};
+
+const safeArray = (array) => (Array.isArray(array) ? array : []);
+
+// Main component
+const ArtistProfile = ({ event: rawEvent }) => {
+  const event = { ...DEFAULT_EVENT, ...rawEvent };
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [scrollPosition, setScrollPosition] = useState(0);
   const [hasReachedAppBar, setHasReachedAppBar] = useState(false);
   const [isVideo, setIsVideo] = useState(false);
@@ -154,21 +219,35 @@ const ArtistProfile = ({ event }) => {
   const { user, loading, openModal } = useAuthStore();
   const location = useLocation();
 
-  // React Query hooks
   const { mutate: toggleFavorite, isLoading } = useToggleFavorite();
   const favorites = useFavoritesStore((state) => state.favorites);
 
-  // Calculate real like state
-  const realLikeState =
-    user && event.interestedId
-      ? event.interestedId.includes(user.uid)
-      : favorites.includes(event.id);
+  // Safe favorites check
+  const realLikeState = Boolean(
+    (user && safeArray(event.interestedId).includes(user.uid)) ||
+      safeArray(favorites).includes(event.id)
+  );
 
-  // Use optimistic state if it exists, otherwise use real state
   const isEventFavorite =
     optimisticLiked !== null ? optimisticLiked : realLikeState;
 
-  // Update optimistic state when real state changes and there's no optimistic update in progress
+  const handleMapOpen = () => {
+    if (
+      event.location?.coordinates?.latitude &&
+      event.location?.coordinates?.longitude
+    ) {
+      const url = `https://www.google.com/maps?q=${event.location.coordinates.latitude},${event.location.coordinates.longitude}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  // Initialize selected category when event data loads
+  useEffect(() => {
+    if (event.categoriesBillets && event.categoriesBillets.length > 0) {
+      setSelectedCategory(event.categoriesBillets[0].name);
+    }
+  }, [event.categoriesBillets]);
+
   useEffect(() => {
     if (optimisticLiked !== null && realLikeState === optimisticLiked) {
       setOptimisticLiked(null);
@@ -176,24 +255,19 @@ const ArtistProfile = ({ event }) => {
   }, [realLikeState, optimisticLiked]);
 
   useEffect(() => {
-    if (event) {
-      setSelectedCategory(event.categoriesBillets[0]?.name);
-    }
-  }, [event]);
-
-  useEffect(() => {
     const handleScroll = () => {
-      if (cardRef.current) {
-        const position = cardRef.current.scrollTop;
-        setScrollPosition(position);
+      if (!cardRef.current) return;
 
-        const appBarHeight = 35;
-        const imageHeight = window.innerHeight * 0.4;
-        const threshold = imageHeight - appBarHeight - 1;
+      const position = cardRef.current.scrollTop;
+      setScrollPosition(position);
 
-        setHasReachedAppBar(position >= threshold / 4);
-      }
+      const appBarHeight = 35;
+      const imageHeight = window.innerHeight * 0.4;
+      const threshold = imageHeight - appBarHeight - 1;
+
+      setHasReachedAppBar(position >= threshold / 4);
     };
+
     const cardElement = cardRef.current;
     if (cardElement) {
       cardElement.addEventListener('scroll', handleScroll);
@@ -217,9 +291,14 @@ const ArtistProfile = ({ event }) => {
       openModal(location.pathname);
       return;
     }
-    navigate(`/category/${event.id}`);
+
+    if (event.id) {
+      navigate(`/category/${event.id}`);
+    }
   };
-  const handleCategoryChange = (event, newCategory) => {
+
+  const handleCategoryChange = (_, newCategory) => {
+    console.log('Nouvelle catégorie sélectionnée:', newCategory);
     if (newCategory !== null) {
       setSelectedCategory(newCategory);
     }
@@ -239,30 +318,28 @@ const ArtistProfile = ({ event }) => {
       return;
     }
 
-    if (!isLoading) {
+    if (!isLoading && event.id) {
       const newLikeState = !isEventFavorite;
       setOptimisticLiked(newLikeState);
 
       toggleFavorite(event.id, {
         onError: () => {
-          // Revert to previous state in case of error
           setOptimisticLiked(!newLikeState);
         },
       });
     }
   };
 
-  const formatDate = (dateString) => {
-    return format(new Date(dateString), 'EEE, d MMMM', { locale: fr });
-  };
-
-  const formatTime = (dateString) => {
-    return format(new Date(dateString), 'HH:mm');
-  };
-
-  const selectedCategoryData = event?.categoriesBillets.find(
-    (cat) => cat.name === selectedCategory
-  );
+  // Find the selected category data
+  const selectedCategoryData = React.useMemo(() => {
+    return (
+      event.categoriesBillets.find((cat) => cat.name === selectedCategory) || {
+        price: 0,
+        availableQuantity: 0,
+        advantages: [],
+      }
+    );
+  }, [event.categoriesBillets, selectedCategory]);
 
   const iconButtonStyle = {
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
@@ -297,7 +374,7 @@ const ArtistProfile = ({ event }) => {
           >
             <Typography
               variant="h2"
-              sx={{ mb: 4, color: '#fff', fontSize: '50px' }}
+              sx={{ mb: 4, color: '#fff', fontSize: '40px' }}
             >
               {event.name} en concert
             </Typography>
@@ -315,7 +392,14 @@ const ArtistProfile = ({ event }) => {
                   <source src={event.coverVideo} type="video/mp4" />
                 </StyledVideo>
               ) : (
-                <StyledImage isLeaving={isLeaving} src={event.coverImage} />
+                <StyledImage
+                  isLeaving={isLeaving}
+                  src={event.coverImage}
+                  alt={event.name}
+                  onError={(e) => {
+                    e.target.src = DEFAULT_EVENT.coverImage;
+                  }}
+                />
               )}
               {event.coverVideo && (
                 <ExitButton onClick={handleTransition}>
@@ -328,10 +412,11 @@ const ArtistProfile = ({ event }) => {
               <Typography variant="h5" sx={{ color: '#fff', mb: 2 }}>
                 Ne manquez pas cet événement exceptionnel !
               </Typography>
-              {selectedCategoryData?.availableQuantity ? (
+              {selectedCategoryData?.availableQuantity > 0 && (
                 <Button
                   variant="contained"
                   size="large"
+                  onClick={handleBookClick}
                   sx={{
                     backgroundColor: '#3ECF8E',
                     '&:hover': {
@@ -341,8 +426,6 @@ const ArtistProfile = ({ event }) => {
                 >
                   Réserver maintenant
                 </Button>
-              ) : (
-                ''
               )}
             </Box>
           </Box>
@@ -435,7 +518,14 @@ const ArtistProfile = ({ event }) => {
                   <source src={event.coverVideo} type="video/mp4" />
                 </StyledVideo>
               ) : (
-                <StyledImage isLeaving={isLeaving} src={event.coverImage} />
+                <StyledImage
+                  isLeaving={isLeaving}
+                  src={event.coverImage}
+                  alt={event.name}
+                  onError={(e) => {
+                    e.target.src = DEFAULT_EVENT.coverImage;
+                  }}
+                />
               )}
             </StyledMedia>
             {event.coverVideo && (
@@ -470,9 +560,23 @@ const ArtistProfile = ({ event }) => {
               {isMobile && event.name}
             </Typography>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <Avatar src={event.organizerProfilePicture} sx={{ mr: 1 }} />
-              <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                mb: 2,
+                position: 'relative',
+              }}
+            >
+              <Avatar
+                src={event.organizerProfilePicture}
+                sx={{ mr: 1 }}
+                alt={event.organizerName}
+                onError={(e) => {
+                  e.target.src = '/api/placeholder/40/40';
+                }}
+              />
+              <Box sx={{ flex: 1 }}>
                 <Typography variant="subtitle1">
                   {event.organizerName}
                 </Typography>
@@ -484,6 +588,17 @@ const ArtistProfile = ({ event }) => {
                   Organisateur
                 </Typography>
               </Box>
+              <MapButton
+                onClick={handleMapOpen}
+                size="medium"
+                sx={{
+                  color: 'white',
+                  minWidth: '40px',
+                  height: '40px',
+                }}
+              >
+                <MapIcon />
+              </MapButton>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -500,11 +615,21 @@ const ArtistProfile = ({ event }) => {
                   sx={{ display: 'flex', alignItems: 'center' }}
                   letterSpacing={1}
                 >
-                  <CalendarToday fontSize="small" sx={{ mr: 1 }} />
+                  <CalendarToday fontSize="14px" sx={{ mr: '9px' }} />
                   {formatDate(event.startDate)}
                 </Typography>
-                <Typography variant="body2" letterSpacing={1}>
-                  {formatTime(event.startDate)} - {formatTime(event.endDate)}
+                <Typography
+                  variant="body2"
+                  letterSpacing={1}
+                  sx={{
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <QueryBuilder sx={{ mr: 1, fontSize: '15px' }} />
+                  {formatTime(event.startDate)}
+                  {event.endDate && ` - ${formatTime(event.endDate)}`}
                 </Typography>
               </Box>
               <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
@@ -521,11 +646,11 @@ const ArtistProfile = ({ event }) => {
                   sx={{ display: 'flex', alignItems: 'center' }}
                   letterSpacing={1}
                 >
-                  <LocationOn fontSize="small" sx={{ mr: 1 }} />
-                  {event.location.city},
+                  <LocationOn sx={{ mr: 1, fontSize: '16px' }} />
+                  {event.location?.city || 'Ville non spécifiée'}
                 </Typography>
                 <Typography variant="body2" letterSpacing={1}>
-                  {event.location.name}
+                  {event.location?.name || 'Lieu non spécifié'}
                 </Typography>
               </Box>
             </Box>
@@ -545,78 +670,95 @@ const ArtistProfile = ({ event }) => {
               {event.description}
             </Typography>
 
-            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
-              Catégories
-            </Typography>
-            <ToggleButtonGroup
-              value={selectedCategory}
-              exclusive
-              onChange={handleCategoryChange}
-              aria-label="ticket category"
-              sx={{ mb: 2, flexWrap: 'wrap' }}
-            >
-              {event.categoriesBillets.map((category) => (
-                <ToggleButton
-                  key={category.id}
-                  value={category.name}
+            {event.categoriesBillets && event.categoriesBillets.length > 0 && (
+              <>
+                <Typography
+                  variant="h6"
+                  sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}
+                >
+                  Catégories
+                </Typography>
+                <ToggleButtonGroup
+                  value={selectedCategory}
+                  exclusive
+                  onChange={handleCategoryChange}
+                  aria-label="ticket category"
+                  sx={{ mb: 2, flexWrap: 'wrap' }}
+                >
+                  {event.categoriesBillets.map((category) => (
+                    <ToggleButton
+                      key={category.id || category.name}
+                      value={category.name}
+                      sx={{
+                        mr: 1,
+                        mb: 1,
+                        border: '1px solid #4a4a4a',
+                        color:
+                          selectedCategory === category.name
+                            ? 'primary.contrastText'
+                            : 'text.primary',
+                        backgroundColor:
+                          selectedCategory === category.name
+                            ? '#3ECF8E'
+                            : 'transparent',
+                        '&.Mui-selected': {
+                          backgroundColor: '#3ECF8E',
+                          color: 'primary.contrastText',
+                        },
+                        '&:hover': {
+                          backgroundColor:
+                            selectedCategory === category.name
+                              ? '#3ECF8E'
+                              : 'rgba(62, 207, 142, 0.1)',
+                        },
+                      }}
+                    >
+                      {category.name}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              </>
+            )}
+
+            {selectedCategoryData && (
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="h6"
                   sx={{
-                    mr: 1,
-                    mb: 1,
-                    border: '1px solid #4a4a4a',
-                    color:
-                      selectedCategory === category.name
-                        ? 'primary.contrastText'
-                        : 'text.primary',
-                    backgroundColor:
-                      selectedCategory === category.name
-                        ? '#3ECF8E'
-                        : 'transparent',
-                    '&.Mui-selected': {
-                      backgroundColor: '#3ECF8E',
-                      color: 'primary.contrastText',
-                    },
-                    '&:hover': {
-                      backgroundColor: '#3ECF8E !important',
-                    },
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontWeight: 'bold',
                   }}
                 >
-                  {category.name}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+                  <AttachMoney sx={{ color: '#3ECF8E', mr: 1 }} />
+                  Prix : {selectedCategoryData.price || 0} XAF
+                </Typography>
+              </Box>
+            )}
 
-            <Box sx={{ mb: 2 }}>
-              <Typography
-                variant="h6"
-                sx={{ display: 'flex', alignItems: 'center' }}
-              >
-                <AttachMoney sx={{ color: '#3ECF8E', mr: 1 }} />
-                Prix : {selectedCategoryData?.price} XAF
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Quantité disponible: {selectedCategoryData?.availableQuantity}{' '}
-                places
-              </Typography>
-            </Box>
-
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Avantages :
-            </Typography>
-            <List dense>
-              {selectedCategoryData?.advantages.map((advantage, index) => (
-                <ListItem key={index} disablePadding>
-                  <ListItemIcon
-                    sx={{ minWidth: 'auto', mr: 1, color: '#3ECF8E' }}
-                  >
-                    <Check fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={advantage}
-                    primaryTypographyProps={{ letterSpacing: 1 }}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            {selectedCategoryData?.advantages &&
+              selectedCategoryData.advantages.length > 0 && (
+                <>
+                  <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    Avantages :
+                  </Typography>
+                  <List dense>
+                    {selectedCategoryData.advantages.map((advantage, index) => (
+                      <ListItem key={index} disablePadding>
+                        <ListItemIcon
+                          sx={{ minWidth: 'auto', mr: 1, color: '#3ECF8E' }}
+                        >
+                          <Check fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={advantage}
+                          primaryTypographyProps={{ letterSpacing: 1 }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </>
+              )}
           </CardContent>
 
           <Box
@@ -624,6 +766,7 @@ const ArtistProfile = ({ event }) => {
               p: 2,
               borderTop: '1px solid',
               borderColor: '#232323',
+              borderRadius: '20px 20px 0 0',
               borderLeft: !isMobile ? '1px solid #232323' : '',
               display: 'flex',
               justifyContent: 'space-between',
@@ -639,17 +782,25 @@ const ArtistProfile = ({ event }) => {
               variant="h6"
               color="#3ECF8E"
               fontFamily="Montserrat"
-              fontWeight="bold"
+              fontWeight="550"
+              fontSize="16px"
             >
-              {selectedCategoryData?.price}
+              {selectedCategoryData?.price || 0}
               <small>XAF</small>{' '}
-              <small style={{ color: '#fff' }}>/personne</small>
+              <small style={{ color: '#fff', fontSize: '12px' }}>
+                /personne
+              </small>
             </Typography>
             <Button
               onClick={handleBookClick}
               variant="contained"
               sx={{
                 backgroundColor: '#3ECF8E',
+                padding: '8px 30px',
+                fontSize: '15px',
+                fontWeight: 600,
+                borderRadius: '30px',
+                textTransform: 'none',
                 '&:hover': {
                   backgroundColor: '#45a49a',
                 },

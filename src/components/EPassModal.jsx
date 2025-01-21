@@ -2,8 +2,9 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
 import React from 'react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
+import JsBarcode from 'jsbarcode';
 import {
   Modal,
   Box,
@@ -15,6 +16,10 @@ import {
   Slide,
   Menu,
   MenuItem,
+  CircularProgress,
+  Backdrop,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -22,13 +27,38 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import QrCodeIcon from '@mui/icons-material/QrCode';
 import SendIcon from '@mui/icons-material/Send';
 import DownloadIcon from '@mui/icons-material/Download';
-
 import { QRCodeSVG } from 'qrcode.react';
-
-import { formatDate, formatTime, handleDownloadTicket } from '../utils/helpers';
+import { formatTime, handleDownloadTicket } from '../utils/helpers';
 import ShareTicketModal from './ShareTicketModal';
 
 const defaultTheme = createTheme();
+
+// Styled Components
+const LoadingBackdrop = styled(Backdrop)(({ theme }) => ({
+  zIndex: theme.zIndex.modal + 1,
+  color: '#fff',
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+}));
+
+const LoadingText = styled(Typography)(({ theme }) => ({
+  marginTop: theme.spacing(2),
+  color: '#fff',
+  fontSize: '1rem',
+}));
+
+const LoadingContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  padding: theme.spacing(4),
+  borderRadius: theme.shape.borderRadius,
+  backdropFilter: 'blur(5px)',
+}));
 
 const ModalWrapper = styled(Box)(({ theme, isMobile }) => ({
   position: 'absolute',
@@ -107,24 +137,26 @@ const DashedLine = styled(Box)(({ theme, withHoles }) => ({
   borderTop: `1px dashed ${theme.palette.divider}`,
   margin: `${theme.spacing(1)} -${theme.spacing(2)}`,
   position: 'relative',
-  '&::before, &::after': {
-    content: '""',
-    position: 'absolute',
-    top: '-14px',
-    width: withHoles ? '26px' : '0',
-    height: withHoles ? '26px' : '0',
-    backgroundColor: '#2A2A2A',
-    borderRadius: '50%',
-  },
-  '&::before': { left: '-8px' },
-  '&::after': { right: '-8px' },
+  '&::before, &::after': withHoles
+    ? {
+        content: '""',
+        position: 'absolute',
+        top: '-14px',
+        width: '26px',
+        height: '26px',
+        backgroundColor: '#2A2A2A',
+        borderRadius: '50%',
+      }
+    : {},
+  '&::before': withHoles ? { left: '-8px' } : {},
+  '&::after': withHoles ? { right: '-8px' } : {},
 }));
 
 const InfoContainer = styled(Grid)(({ theme }) => ({
   display: 'grid',
   gridTemplateColumns: 'repeat(2, 1fr)',
-  gap: theme.spacing(2),
-  margin: `${theme.spacing(1.5)} 0`,
+  gap: theme.spacing(1.5),
+  margin: `${theme.spacing(1)} 0`,
 }));
 
 const InfoGroup = styled(Box)(({ align }) => ({
@@ -134,69 +166,40 @@ const InfoGroup = styled(Box)(({ align }) => ({
   width: '100%',
 }));
 
-const InfoHeader = styled(Box)(({ align }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  width: '100%',
-  justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
-  marginBottom: '2px',
-}));
-
 const InfoLabel = styled(Typography)(({ align }) => ({
-  fontSize: '12px',
+  fontSize: '13px',
   color: '#000',
-  textTransform: 'uppercase',
   letterSpacing: '0.5px',
   fontWeight: 'bold',
   textAlign: align === 'right' ? 'right' : 'left',
 }));
 
 const InfoValue = styled(Typography)(({ align }) => ({
-  fontSize: '14px',
+  fontSize: '12px',
   color: '#303030',
-  fontWeight: 'normal',
+  fontWeight: '400',
   textAlign: align === 'right' ? 'right' : 'left',
 }));
 
-const Barcode = styled(Box)(({ theme }) => ({
-  height: '60px',
-  margin: `${theme.spacing(2)} auto 0`,
+const BarcodeContainer = styled(Box)(({ theme }) => ({
+  margin: `${theme.spacing(1)} auto 0`,
   width: '100%',
-  backgroundImage: `
-    linear-gradient(
-      to right,
-      ${theme.palette.text.primary} 0px, ${theme.palette.text.primary} 1px, transparent 1px, transparent 3px,
-      ${theme.palette.text.primary} 3px, ${theme.palette.text.primary} 4px, transparent 4px, transparent 6px,
-      ${theme.palette.text.primary} 6px, ${theme.palette.text.primary} 7px, transparent 7px, transparent 9px,
-      ${theme.palette.text.primary} 9px, ${theme.palette.text.primary} 11px, transparent 11px, transparent 15px,
-      ${theme.palette.text.primary} 15px, ${theme.palette.text.primary} 18px, transparent 18px, transparent 22px,
-      ${theme.palette.text.primary} 22px, ${theme.palette.text.primary} 23px, transparent 23px, transparent 25px,
-      ${theme.palette.text.primary} 25px, ${theme.palette.text.primary} 28px, transparent 28px, transparent 32px,
-      ${theme.palette.text.primary} 32px, ${theme.palette.text.primary} 33px, transparent 33px, transparent 35px,
-      ${theme.palette.text.primary} 35px, ${theme.palette.text.primary} 37px, transparent 37px, transparent 39px,
-      ${theme.palette.text.primary} 39px, ${theme.palette.text.primary} 42px, transparent 42px, transparent 46px
-    )
-  `,
-  backgroundSize: '46px 100%',
-  backgroundRepeat: 'repeat-x',
-  position: 'relative',
-  '&::before, &::after': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: '2px',
-    backgroundColor: theme.palette.text.primary,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: '0 6px',
+  '& canvas': {
+    maxWidth: '100%',
+    height: '60px !important',
   },
-  '&::before': {
-    left: 0,
-  },
-  '&::after': {
-    right: 0,
-  },
-  filter: 'contrast(160%) brightness(90%)',
-  borderRadius: theme.shape.borderRadius / 2,
 }));
+
+const TicketNumber = styled(Typography)({
+  textAlign: 'center',
+  fontSize: '11px',
+  color: '#000',
+  marginTop: '3px',
+});
 
 const QrButton = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -245,12 +248,90 @@ const QrText = styled(Typography)(({ theme }) => ({
   fontWeight: 500,
 }));
 
+// Helper Functions
+const formatDate = (date) => {
+  const d = new Date(date);
+  const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const months = [
+    'Jan',
+    'Fév',
+    'Mar',
+    'Avr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Aoû',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Déc',
+  ];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+};
+
+const formatTicketNumber = (categoryId, number) => {
+  return `N°${String(number).padStart(8, '0')}`;
+};
+
+// Main Component
 const EPassModal = ({ open, onClose, tickets }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [showQrCode, setShowQrCode] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const barcodeRef = useRef(null);
+
+  const generateBarcode = () => {
+    if (barcodeRef.current && tickets.billetId) {
+      try {
+        const canvas = barcodeRef.current;
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        JsBarcode(canvas, tickets.billetId, {
+          format: 'CODE128',
+          width: 2.5,
+          height: 50,
+          margin: 10,
+          background: '#ffffff',
+          lineColor: '#000000',
+          displayValue: false,
+          fontSize: 0,
+          textMargin: 0,
+          valid: (valid) => {
+            if (!valid) {
+              console.error('Code-barres invalide');
+            }
+          },
+        });
+      } catch (error) {
+        console.error('Erreur lors de la génération du code-barres:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (open && tickets.billetId) {
+      const timer = setTimeout(() => {
+        generateBarcode();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open, tickets.billetId]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (open) {
+        generateBarcode();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [open]);
 
   const handleQrCodeClick = () => {
     setShowQrCode(true);
@@ -266,6 +347,25 @@ const EPassModal = ({ open, onClose, tickets }) => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleDownloadWithLoading = async () => {
+    setIsDownloading(true);
+    try {
+      await handleDownloadTicket(tickets);
+    } catch (error) {
+      console.error('Error downloading ticket:', error);
+      setErrorMessage(
+        'Une erreur est survenue lors du téléchargement. Veuillez réessayer plus tard.'
+      );
+    } finally {
+      setIsDownloading(false);
+      handleMenuClose();
+    }
+  };
+
+  const handleCloseError = () => {
+    setErrorMessage('');
   };
 
   const handleShareTicket = () => {
@@ -298,16 +398,17 @@ const EPassModal = ({ open, onClose, tickets }) => {
                 horizontal: 'right',
               }}
             >
-              <MenuItem onClick={() => handleShareTicket(tickets)}>
+              <MenuItem onClick={handleShareTicket}>
                 <SendIcon sx={{ marginRight: theme.spacing(1) }} />
                 Partager le ticket
               </MenuItem>
-              <MenuItem onClick={() => handleDownloadTicket(tickets)}>
+              <MenuItem onClick={handleDownloadWithLoading}>
                 <DownloadIcon sx={{ marginRight: theme.spacing(1) }} />
                 Télécharger le ticket
               </MenuItem>
             </Menu>
           </Header>
+
           <PassContainer isMobile={isMobile}>
             <PassImageContainer>
               <PassImage src={tickets.coverImage} alt={tickets.eventName} />
@@ -317,54 +418,62 @@ const EPassModal = ({ open, onClose, tickets }) => {
                 variant="h6"
                 sx={{
                   fontWeight: 'bold',
-                  marginBottom: theme.spacing(1),
+                  marginBottom: theme.spacing(0.5),
                   textAlign: 'center',
                   color: 'black',
+                  fontSize: '16px',
                 }}
               >
                 {tickets.eventName}
               </Typography>
+
               <DashedLine withHoles={false} />
+
               <InfoContainer>
                 <InfoGroup>
-                  <InfoHeader>
-                    <InfoLabel>DATE</InfoLabel>
-                  </InfoHeader>
+                  <InfoLabel>Date</InfoLabel>
                   <InfoValue>{formatDate(tickets.startDate)}</InfoValue>
                 </InfoGroup>
 
                 <InfoGroup align="right">
-                  <InfoHeader align="right">
-                    <InfoLabel align="right">HEURE</InfoLabel>
-                  </InfoHeader>
+                  <InfoLabel align="right">Heure</InfoLabel>
                   <InfoValue align="right">
                     {formatTime(tickets.startDate)}
                   </InfoValue>
                 </InfoGroup>
 
                 <InfoGroup>
-                  <InfoHeader>
-                    <InfoLabel>LIEU</InfoLabel>
-                  </InfoHeader>
+                  <InfoLabel>Lieu</InfoLabel>
                   <InfoValue>{tickets.locationName}</InfoValue>
                 </InfoGroup>
 
                 <InfoGroup align="right">
-                  <InfoHeader align="right">
-                    <InfoLabel align="right">CATEGORIE</InfoLabel>
-                  </InfoHeader>
+                  <InfoLabel align="right">Catégorie</InfoLabel>
                   <InfoValue align="right">{tickets.categoryBillet}</InfoValue>
                 </InfoGroup>
               </InfoContainer>
+
               <DashedLine withHoles={true} />
-              <Barcode />
+
+              <BarcodeContainer>
+                <canvas
+                  ref={barcodeRef}
+                  style={{
+                    width: '100%',
+                    maxWidth: '280px',
+                  }}
+                />
+              </BarcodeContainer>
+
+              <TicketNumber>
+                {formatTicketNumber(tickets.categoryId, tickets.number)}
+              </TicketNumber>
             </PassContent>
           </PassContainer>
+
           <QrButton onClick={handleQrCodeClick}>
-            <QrCodeIcon
-              sx={{ marginRight: theme.spacing(1), fontSize: '18px' }}
-            />
-            <Typography fontWeight="bold" fontSize="14px">
+            <QrCodeIcon sx={{ marginRight: 1, fontSize: '16px' }} />
+            <Typography fontWeight="bold" fontSize="13px">
               Code QR
             </Typography>
           </QrButton>
@@ -391,13 +500,35 @@ const EPassModal = ({ open, onClose, tickets }) => {
               </QrCodeModal>
             </Slide>
           </Modal>
+
+          {/* Loading Backdrop */}
+          <LoadingBackdrop open={isDownloading}>
+            <LoadingContainer>
+              <CircularProgress color="inherit" size={60} />
+              <LoadingText>Génération du ticket en cours...</LoadingText>
+            </LoadingContainer>
+          </LoadingBackdrop>
+
+          {/* Error Snackbar */}
+          <Snackbar
+            open={Boolean(errorMessage)}
+            autoHideDuration={6000}
+            onClose={handleCloseError}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert onClose={handleCloseError} severity="error" variant="filled">
+              {errorMessage}
+            </Alert>
+          </Snackbar>
         </ModalWrapper>
       </Modal>
+
       {tickets && (
         <ShareTicketModal
           open={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
           ticket={tickets}
+          close={onClose}
         />
       )}
     </ThemeProvider>
