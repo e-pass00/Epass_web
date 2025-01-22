@@ -8,6 +8,7 @@ import {
   TextField,
   Radio,
   RadioGroup,
+  CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,6 +20,8 @@ import {
   CheckCircle,
   X as XIcon,
 } from 'lucide-react';
+import Confetti from 'react-confetti';
+import useWindowSize from 'react-use/lib/useWindowSize';
 import { styled, keyframes } from '@mui/material/styles';
 import { useReserveTickets } from '../features/events/api/queries';
 import momo from '../assets/momo.jpg';
@@ -62,6 +65,13 @@ const ScrollableContent = styled(DialogContent)({
   '&::-webkit-scrollbar': {
     display: 'none',
   },
+});
+
+const LoadingButton = styled(Box)({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '8px',
 });
 
 const EventDetails = styled(Box)({
@@ -234,7 +244,7 @@ const BottomBar = styled(Box)(({ theme }) => ({
   right: 0,
   backgroundColor: 'rgba(0, 0, 0, 0.95)',
   padding: '16px',
-  borderTop: '1px solid rgba(62, 207, 142, 0.15)', // Bordure plus claire (augmenté de 0.1 à 0.15)
+  borderTop: '1px solid rgba(62, 207, 142, 0.15)',
   display: 'flex',
   justifyContent: 'space-between',
   borderRadius: '20px 20px 0 0',
@@ -248,6 +258,7 @@ const BottomBar = styled(Box)(({ theme }) => ({
     transform: 'none',
   },
 }));
+
 const PayButton = styled('button')({
   backgroundColor: '#3ECF8E',
   color: '#000000',
@@ -355,6 +366,8 @@ const PurchaseSummaryModal = ({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [formattedPhone, setFormattedPhone] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const { width, height } = useWindowSize();
   const navigate = useNavigate();
 
   const reserveTicketsMutation = useReserveTickets();
@@ -383,9 +396,7 @@ const PurchaseSummaryModal = ({
   };
 
   const getPaymentSystemCode = (method) => {
-    console.log('Payment method received:', method);
     const systemCode = PAYMENT_METHODS[method]?.systemCode;
-    console.log('System code to be sent:', systemCode);
     return systemCode;
   };
 
@@ -398,8 +409,6 @@ const PurchaseSummaryModal = ({
       }));
 
     const paymentSystem = getPaymentSystemCode(selectedMethod);
-    console.log('Selected method:', selectedMethod);
-    console.log('Payment system to be sent:', paymentSystem);
 
     try {
       const payload = {
@@ -409,15 +418,16 @@ const PurchaseSummaryModal = ({
         phoneNumber: phoneNumber.replace(/\s/g, ''),
       };
 
-      console.log('Full payload being sent:', payload);
-
       await reserveTicketsMutation.mutateAsync(payload);
       setStep('success');
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5000);
     } catch (error) {
       console.error('Payment error details:', error);
       setStep('error');
     }
   };
+
   const handleMethodSelect = (method) => {
     setSelectedMethod(method);
     setPhoneNumber('');
@@ -727,6 +737,14 @@ const PurchaseSummaryModal = ({
     if (step === 'success') {
       return (
         <ResultContainer>
+          {showConfetti && (
+            <Confetti
+              width={width}
+              height={height}
+              recycle={false}
+              numberOfPieces={200}
+            />
+          )}
           <IconWrapper className="success">
             <CheckCircle size={40} />
           </IconWrapper>
@@ -818,7 +836,10 @@ const PurchaseSummaryModal = ({
             onClick={handlePayment}
           >
             {reserveTicketsMutation.isLoading ? (
-              <CircularProgress size={24} color="inherit" />
+              <LoadingButton>
+                <CircularProgress size={24} sx={{ color: '#000000' }} />
+                <span>Traitement en cours...</span>
+              </LoadingButton>
             ) : (
               'Payer maintenant'
             )}

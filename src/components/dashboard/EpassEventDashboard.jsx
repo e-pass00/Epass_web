@@ -121,7 +121,8 @@ const EpassEventDashboard = () => {
         ...Object.keys(saleByPeriod.lastSevenDays).reduce(
           (acc, category) => ({
             ...acc,
-            [category]: saleByPeriod.lastSevenDays[category][index],
+            // Inverser l'index pour aligner correctement les dates
+            [category]: saleByPeriod.lastSevenDays[category][6 - index],
           }),
           {}
         ),
