@@ -1,7 +1,8 @@
 import { styled, Box, Typography, IconButton, Avatar } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import logo from '../../assets/logo_epass.svg';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 
 const HeaderContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -14,7 +15,7 @@ const HeaderContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const LogoContainer = styled(Box)(({ theme }) => ({
+const LeftContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: '10px',
@@ -23,14 +24,11 @@ const LogoContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const LogoImage = styled('img')(({ theme }) => ({
-  width: '45px',
-  height: '45px',
-  filter:
-    'brightness(0) saturate(100%) invert(80%) sepia(29%) saturate(1115%) hue-rotate(101deg) brightness(99%) contrast(87%)',
+const BackButton = styled(IconButton)(({ theme }) => ({
+  padding: theme.spacing(1),
+  marginRight: theme.spacing(1),
   [theme.breakpoints.down('sm')]: {
-    width: '38px',
-    height: '38px',
+    padding: theme.spacing(0.5),
   },
 }));
 
@@ -71,22 +69,32 @@ const StyledAvatar = styled(Avatar)(({ theme }) => ({
   },
 }));
 
-const Header = () => (
-  <HeaderContainer>
-    <LogoContainer>
-      <LogoImage src={logo} alt="Logo" />
-      <AppName>E-pass Dashboard</AppName>
-    </LogoContainer>
-    <IconsContainer>
-      <StyledIconButton>
-        <EditIcon sx={{ fontSize: { xs: '18px', sm: '22px' } }} />
-      </StyledIconButton>
-      <StyledIconButton>
-        <NotificationsIcon sx={{ fontSize: { xs: '18px', sm: '22px' } }} />
-      </StyledIconButton>
-      <StyledAvatar src="/path-to-avatar.jpg" />
-    </IconsContainer>
-  </HeaderContainer>
-);
+const Header = () => {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    navigate(-1); // Retourne à la page précédente
+  };
+
+  return (
+    <HeaderContainer>
+      <LeftContainer>
+        <BackButton onClick={handleBack}>
+          <ArrowBackIcon sx={{ fontSize: { xs: '20px', sm: '24px' } }} />
+        </BackButton>
+        <AppName>E-pass Dashboard</AppName>
+      </LeftContainer>
+      <IconsContainer>
+        <StyledIconButton>
+          <EditIcon sx={{ fontSize: { xs: '18px', sm: '22px' } }} />
+        </StyledIconButton>
+        <StyledIconButton>
+          <NotificationsIcon sx={{ fontSize: { xs: '18px', sm: '22px' } }} />
+        </StyledIconButton>
+        <StyledAvatar src="/path-to-avatar.jpg" />
+      </IconsContainer>
+    </HeaderContainer>
+  );
+};
 
 export default Header;

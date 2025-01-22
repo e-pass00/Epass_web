@@ -157,7 +157,7 @@ export const DashboardNoData = () => (
       <Typography
         variant="body1"
         sx={{
-          color: 'text.secondary',
+          color: '#1f1f1f',
           mb: 2,
         }}
       >
@@ -166,7 +166,7 @@ export const DashboardNoData = () => (
       <Typography
         variant="body2"
         sx={{
-          color: 'text.secondary',
+          color: '#1f1f1f',
           fontStyle: 'italic',
         }}
       >

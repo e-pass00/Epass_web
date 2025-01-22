@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, useTheme, useMediaQuery } from '@mui/material';
 import { TimelineOutlined } from '@mui/icons-material';
 import styled, { keyframes } from 'styled-components';
 
@@ -31,21 +31,22 @@ const dots = keyframes`
   }
 `;
 
-// Styled Components
+// Styled Components avec Media Queries
 const EmptyStateContainer = styled(Box)`
-  height: 100%;
+  min-height: 300px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  padding: 32px;
+  gap: ${(props) => (props.isMobile ? '16px' : '24px')};
+  padding: ${(props) => (props.isMobile ? '16px' : '32px')};
 `;
 
 const IconWrapper = styled(Box)`
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: ${(props) => (props.isMobile ? '60px' : '80px')};
+  height: ${(props) => (props.isMobile ? '60px' : '80px')};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -64,7 +65,7 @@ const IconWrapper = styled(Box)`
 
 const StyledIcon = styled(TimelineOutlined)`
   && {
-    font-size: 40px;
+    font-size: ${(props) => (props.isMobile ? '30px' : '40px')};
     color: #4a90ff;
     z-index: 1;
   }
@@ -72,17 +73,18 @@ const StyledIcon = styled(TimelineOutlined)`
 
 const MessageContainer = styled(Box)`
   text-align: center;
-  max-width: 300px;
+  max-width: ${(props) => (props.isMobile ? '260px' : '300px')};
+  padding: 0 ${(props) => (props.isMobile ? '16px' : '0')};
 `;
 
 const DotsContainer = styled(Box)`
   display: flex;
-  gap: 8px;
+  gap: ${(props) => (props.isMobile ? '6px' : '8px')};
 `;
 
 const Dot = styled.div`
-  width: 8px;
-  height: 8px;
+  width: ${(props) => (props.isMobile ? '6px' : '8px')};
+  height: ${(props) => (props.isMobile ? '6px' : '8px')};
   border-radius: 50%;
   background: ${(props) => props.color};
   animation: ${dots} 1.4s ease-in-out infinite;
@@ -90,19 +92,23 @@ const Dot = styled.div`
 `;
 
 const EmptyTicketSales = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   return (
-    <EmptyStateContainer>
-      <IconWrapper>
-        <StyledIcon />
+    <EmptyStateContainer isMobile={isMobile}>
+      <IconWrapper isMobile={isMobile}>
+        <StyledIcon isMobile={isMobile} />
       </IconWrapper>
 
-      <MessageContainer>
+      <MessageContainer isMobile={isMobile}>
         <Typography
-          variant="h6"
+          variant={isMobile ? 'subtitle1' : 'h6'}
           sx={{
             color: 'white',
             fontWeight: 600,
-            marginBottom: 1,
+            marginBottom: isMobile ? 0.5 : 1,
+            fontSize: isMobile ? '1.1rem' : '1.25rem',
           }}
         >
           Pas de ventes récentes
@@ -111,17 +117,18 @@ const EmptyTicketSales = () => {
           variant="body2"
           sx={{
             color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: isMobile ? '0.875rem' : '1rem',
           }}
         >
-          Aucune vente n'a été enregistrée ces 7 derniers jours. Le graphique
-          s'actualisera automatiquement à la prochaine vente.
+          Aucune vente enregistrée pour ces 7 derniers jours. Le graphique
+          s'actualisera à la prochaine vente.
         </Typography>
       </MessageContainer>
 
-      <DotsContainer>
-        <Dot color="#4A90FF" delay={0} />
-        <Dot color="#50E3C2" delay={0.2} />
-        <Dot color="#FFCF5C" delay={0.4} />
+      <DotsContainer isMobile={isMobile}>
+        <Dot color="#4A90FF" delay={0} isMobile={isMobile} />
+        <Dot color="#50E3C2" delay={0.2} isMobile={isMobile} />
+        <Dot color="#FFCF5C" delay={0.4} isMobile={isMobile} />
       </DotsContainer>
     </EmptyStateContainer>
   );
