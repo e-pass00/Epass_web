@@ -7,6 +7,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+import NoTicketsIllustration from './NoTicketsIllustration';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 const formatPercentage = (value, total) => {
@@ -78,14 +79,7 @@ const TicketSalesDonutChart = ({ datas }) => {
             color: 'rgba(255, 255, 255, 0.7)',
           }}
         >
-          <Typography
-            sx={{
-              fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
-              textAlign: 'center',
-            }}
-          >
-            Aucun billet vendu pour le moment
-          </Typography>
+          <NoTicketsIllustration />
         </Box>
       );
     }

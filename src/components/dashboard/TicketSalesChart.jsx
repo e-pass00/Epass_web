@@ -17,6 +17,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import EmptyTicketSales from './EmptyTicketSales';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -117,19 +118,7 @@ const TicketSalesChart = ({ data }) => {
 
   const renderContent = () => {
     if (!hasData) {
-      return (
-        <Box
-          sx={{
-            height: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            color: 'rgba(255, 255, 255, 0.7)',
-          }}
-        >
-          <Typography>Aucune vente enregistrée pour le moment</Typography>
-        </Box>
-      );
+      return <EmptyTicketSales />;
     }
 
     return (

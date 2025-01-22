@@ -363,6 +363,7 @@ const PurchaseSummaryModal = ({
 }) => {
   const [step, setStep] = useState('summary');
   const [selectedMethod, setSelectedMethod] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [formattedPhone, setFormattedPhone] = useState('');
@@ -401,6 +402,10 @@ const PurchaseSummaryModal = ({
   };
 
   const handlePayment = async () => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
+
     const ticketsData = Object.entries(quantities)
       .filter(([_, quantity]) => quantity > 0)
       .map(([categoryId, quantity]) => ({
@@ -425,6 +430,8 @@ const PurchaseSummaryModal = ({
     } catch (error) {
       console.error('Payment error details:', error);
       setStep('error');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -832,10 +839,14 @@ const PurchaseSummaryModal = ({
             </Typography>
           </Box>
           <PayButton
-            disabled={!selectedMethod || reserveTicketsMutation.isLoading}
+            disabled={
+              !selectedMethod ||
+              isProcessing ||
+              reserveTicketsMutation.isLoading
+            }
             onClick={handlePayment}
           >
-            {reserveTicketsMutation.isLoading ? (
+            {isProcessing || reserveTicketsMutation.isLoading ? (
               <LoadingButton>
                 <CircularProgress size={24} sx={{ color: '#000000' }} />
                 <span>Traitement en cours...</span>

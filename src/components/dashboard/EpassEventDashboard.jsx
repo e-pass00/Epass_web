@@ -12,6 +12,11 @@ import theme from '../../theme/theme';
 import ScannersPerformanceTable from './ScannersPerformanceTable';
 import { useEventDashboard } from '../../features/events/api/queries';
 import {
+  DashboardLoading,
+  DashboardError,
+  DashboardNoData,
+} from './DashboardStates';
+import {
   AttachMoneyOutlined,
   ConfirmationNumberOutlined,
   QrCodeScannerOutlined,
@@ -203,9 +208,9 @@ const EpassEventDashboard = () => {
     },
   ];
 
-  if (isLoading) return <div>Chargement...</div>;
-  if (error) return <div>Erreur: {error.message}</div>;
-  if (!dashboardData) return <div>Aucune donnée disponible</div>;
+  if (isLoading) return <DashboardLoading />;
+  if (error) return <DashboardError />;
+  if (!dashboardData) return <DashboardNoData />;
 
   return (
     <ThemeProvider theme={theme}>

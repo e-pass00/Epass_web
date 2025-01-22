@@ -15,6 +15,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+import { MapLoading, MapError } from './MapLoadingError';
 
 const libraries = ['places'];
 
@@ -290,8 +291,8 @@ const EventLocation = ({ formData, handleChange }) => {
     }
   };
 
-  if (loadError) return <Box>Erreur de chargement de la carte</Box>;
-  if (!isLoaded) return <Box>Chargement de la carte...</Box>;
+  if (loadError) return <MapError />;
+  if (!isLoaded) return <MapLoading />;
 
   return (
     <Box

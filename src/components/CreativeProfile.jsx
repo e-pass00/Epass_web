@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Typography } from '@mui/material';
+import { Box, Card, CircularProgress, Typography } from '@mui/material';
 import { Calendar, Lock, CreditCard, Award } from 'lucide-react';
 import styled from 'styled-components';
 import PersonalInfoModal from './PersonalInfoModal';
@@ -202,7 +202,18 @@ const CreativeProfile = () => {
   const { data: user, isLoading } = useUserInfo();
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
   }
 
   const isOrganizer = user?.role === 'organisateur';
