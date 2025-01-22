@@ -70,8 +70,10 @@ const ScrollableContent = styled(DialogContent)({
 const LoadingButton = styled(Box)({
   display: 'flex',
   alignItems: 'center',
+  fontSize: '15px',
+  fontWeight: 600,
   justifyContent: 'center',
-  gap: '8px',
+  gap: '4px',
 });
 
 const EventDetails = styled(Box)({
@@ -263,7 +265,7 @@ const PayButton = styled('button')({
   backgroundColor: '#3ECF8E',
   color: '#000000',
   border: 'none',
-  borderRadius: '24px',
+  borderRadius: '28px',
   padding: '14px 36px',
   fontSize: '15px',
   fontWeight: 600,
@@ -849,7 +851,7 @@ const PurchaseSummaryModal = ({
             {isProcessing || reserveTicketsMutation.isLoading ? (
               <LoadingButton>
                 <CircularProgress size={24} sx={{ color: '#000000' }} />
-                <span>Traitement en cours...</span>
+                <span>en cours...</span>
               </LoadingButton>
             ) : (
               'Payer maintenant'
