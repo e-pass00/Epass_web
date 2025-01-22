@@ -108,19 +108,20 @@ const Badge = styled.div`
   gap: 0.5rem;
   margin-top: 0.5rem;
 `;
-
 const Stats = styled.div`
   display: flex;
   gap: 1.5rem;
   background: rgba(255, 255, 255, 0.03);
   padding: 1rem;
   border-radius: 16px;
-  width: 50%;
+  width: auto;
+  min-width: 200px;
   justify-content: center;
 `;
 
 const StatItem = styled.div`
   text-align: center;
+  min-width: 70px;
 `;
 
 const StatValue = styled(Typography)`
@@ -130,8 +131,9 @@ const StatValue = styled(Typography)`
 `;
 
 const StatLabel = styled(Typography)`
-  font-size: 0.875rem !important;
+  font-size: 0.75rem !important;
   color: #a0a0a0 !important;
+  white-space: nowrap;
 `;
 
 const MenuGrid = styled.div`
