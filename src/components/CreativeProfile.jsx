@@ -274,7 +274,7 @@ const CreativeProfile = () => {
               <Stats>
                 <StatItem>
                   <StatValue variant="h6">10</StatValue>
-                  <StatLabel variant="body2">Events</StatLabel>
+                  <StatLabel variant="body2">Événements</StatLabel>
                 </StatItem>
                 <StatItem>
                   <StatValue variant="h6">4.3</StatValue>

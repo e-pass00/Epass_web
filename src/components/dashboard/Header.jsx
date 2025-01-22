@@ -10,6 +10,10 @@ const HeaderContainer = styled(Box)(({ theme }) => ({
   alignItems: 'center',
   padding: theme.spacing(2),
   backgroundColor: theme.palette.background.paper,
+  position: 'sticky',
+  top: 0,
+  zIndex: theme.zIndex.appBar,
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   [theme.breakpoints.down('sm')]: {
     padding: theme.spacing(1),
   },
@@ -73,7 +77,7 @@ const Header = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate(-1); // Retourne à la page précédente
+    navigate(-1);
   };
 
   return (
