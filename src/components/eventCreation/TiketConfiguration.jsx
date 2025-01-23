@@ -169,9 +169,7 @@ const TicketConfiguration = ({
 
           <TicketGrid>
             <InputGroup>
-              <InputLabel>
-                <Euro size={16} /> Prix du billet
-              </InputLabel>
+              <InputLabel> Prix du billet</InputLabel>
               <PriceInput>
                 <StyledInputs
                   type="number"
