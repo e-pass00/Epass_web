@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 
-import { Ticket, Award, Users, Plus, Minus } from 'lucide-react';
+import { CreditCard, Ticket, Award, Users, Plus, Minus } from 'lucide-react';
 
 const TicketSection = styled.div`
   margin-bottom: 2rem;
@@ -169,7 +169,10 @@ const TicketConfiguration = ({
 
           <TicketGrid>
             <InputGroup>
-              <InputLabel> Prix du billet</InputLabel>
+              <InputLabel>
+                {' '}
+                <CreditCard size={16} /> Prix du billet
+              </InputLabel>
               <PriceInput>
                 <StyledInputs
                   type="number"

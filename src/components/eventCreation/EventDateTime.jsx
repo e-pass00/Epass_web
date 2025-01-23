@@ -1,6 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Calendar, Clock } from 'lucide-react';
+import TimePicker from 'react-time-picker';
+import 'react-time-picker/dist/TimePicker.css';
 
 const DateTimeSection = styled.div`
   background: linear-gradient(
@@ -26,11 +28,6 @@ const DateTimeHeader = styled.div`
     font-weight: 600;
     margin-bottom: 0.5rem;
   }
-
-  p {
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
 `;
 
 const DateTimeContent = styled.div`
@@ -47,21 +44,10 @@ const DatePickerContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
-`;
 
-const DateInputWrapper = styled.div`
-  position: relative;
-  margin-top: 8px;
-
-  &::after {
-    content: '';
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1px;
-    height: 60%;
-    background: rgba(255, 255, 255, 0.1);
+  input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(2);
+    cursor: pointer;
   }
 `;
 
@@ -71,32 +57,12 @@ const TimePickerContainer = styled.div`
   gap: 1.5rem;
 `;
 
-const TimeInputsWrapper = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 2rem;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.1);
-  }
-`;
-
-const StyledInput = styled.input`
+const StyledDateInput = styled.input`
   width: 100%;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 0.875rem 1rem;
-  padding-left: 2.75rem;
-  margin-top: -20px;
   color: white;
   font-size: 0.9375rem;
   transition: all 0.2s;
@@ -107,29 +73,36 @@ const StyledInput = styled.input`
     background: rgba(62, 207, 142, 0.05);
     box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.1);
   }
-
-  &::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    opacity: 0.5;
-    cursor: pointer;
-  }
 `;
 
-const InputIcon = styled.div`
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+const TimePickerWrapper = styled.div`
+  .react-time-picker {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+  }
+
+  .react-time-picker__wrapper {
+    border: none;
+    padding: 0.5rem 1rem;
+  }
+
+  .react-time-picker__input input {
+    color: white;
+    background: transparent;
+    border: none;
+    font-size: 0.9375rem;
+  }
 `;
 
 const Label = styled.label`
   color: #e5e7eb;
   font-size: 0.975rem;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 `;
 
 const EventDateTime = ({ formData, handleChange }) => {
@@ -142,63 +115,55 @@ const EventDateTime = ({ formData, handleChange }) => {
       <DateTimeContent>
         <DatePickerContainer>
           <Label>
-            <Calendar size={16} /> Date de l'événement
+            <Calendar size={16} color="white" /> Date de l'événement
           </Label>
-          <DateInputWrapper>
-            <InputIcon>
-              <Calendar size={18} />
-            </InputIcon>
-            <StyledInput
-              type="date"
-              value={formData.datetime.date}
-              onChange={(e) =>
-                handleChange('datetime', {
-                  ...formData.datetime,
-                  date: e.target.value,
-                })
-              }
-            />
-          </DateInputWrapper>
+          <StyledDateInput
+            type="date"
+            value={formData.datetime.date}
+            onChange={(e) =>
+              handleChange('datetime', {
+                ...formData.datetime,
+                date: e.target.value,
+              })
+            }
+          />
         </DatePickerContainer>
 
         <TimePickerContainer>
           <Label>
-            <Clock size={16} /> Heures de l'événement
+            <Clock size={16} /> Heure de début
           </Label>
-          <TimeInputsWrapper>
-            <div style={{ position: 'relative' }}>
-              <InputIcon>
-                <Clock size={18} />
-              </InputIcon>
-              <StyledInput
-                type="time"
-                value={formData.datetime.startTime}
-                onChange={(e) =>
-                  handleChange('datetime', {
-                    ...formData.datetime,
-                    startTime: e.target.value,
-                  })
-                }
-                placeholder="Début"
-              />
-            </div>
-            <div style={{ position: 'relative' }}>
-              <InputIcon>
-                <Clock size={18} />
-              </InputIcon>
-              <StyledInput
-                type="time"
-                value={formData.datetime.endTime}
-                onChange={(e) =>
-                  handleChange('datetime', {
-                    ...formData.datetime,
-                    endTime: e.target.value,
-                  })
-                }
-                placeholder="Fin"
-              />
-            </div>
-          </TimeInputsWrapper>
+          <TimePickerWrapper>
+            <TimePicker
+              onChange={(startTime) =>
+                handleChange('datetime', {
+                  ...formData.datetime,
+                  startTime,
+                })
+              }
+              value={formData.datetime.startTime}
+              disableClock={true}
+              format="HH:mm"
+              clearIcon={null}
+            />
+          </TimePickerWrapper>
+          <Label>
+            <Clock size={16} /> Heure de fin (optionnel)
+          </Label>
+          <TimePickerWrapper>
+            <TimePicker
+              onChange={(endTime) =>
+                handleChange('datetime', {
+                  ...formData.datetime,
+                  endTime,
+                })
+              }
+              value={formData.datetime.endTime}
+              disableClock={true}
+              format="HH:mm"
+              clearIcon={null}
+            />
+          </TimePickerWrapper>
         </TimePickerContainer>
       </DateTimeContent>
     </DateTimeSection>
