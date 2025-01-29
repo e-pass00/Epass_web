@@ -65,7 +65,9 @@ const HomePage = () => {
     >
       <AuthModal />
       <Box sx={{ py: 1 }}>
-        {activeCategory === 'Tout voir' && !searchTerm && <PopularEvents />}
+        {activeCategory && !searchTerm && (
+          <PopularEvents activeCategory={activeCategory} />
+        )}
         {!showNoSearchResults && filteredEvents?.length > 0 && (
           <Typography
             variant="h6"

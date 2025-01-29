@@ -17,15 +17,16 @@ import {
   Clock,
   MapPin,
   AlertCircle,
-  CheckCircle,
   X as XIcon,
+  Smartphone,
 } from 'lucide-react';
-import Confetti from 'react-confetti';
+
 import useWindowSize from 'react-use/lib/useWindowSize';
 import { styled, keyframes } from '@mui/material/styles';
 import { useReserveTickets } from '../features/events/api/queries';
 import momo from '../assets/momo.jpg';
-import airtel from '../assets/airtel.png';
+
+import { Alert, AlertTitle, AlertDescription } from './PurchaseSummary/Alert';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-container': {
@@ -403,40 +404,6 @@ const PurchaseSummaryModal = ({
     return systemCode;
   };
 
-  const handlePayment = async () => {
-    if (isProcessing) return;
-
-    setIsProcessing(true);
-
-    const ticketsData = Object.entries(quantities)
-      .filter(([_, quantity]) => quantity > 0)
-      .map(([categoryId, quantity]) => ({
-        categoryId,
-        quantity,
-      }));
-
-    const paymentSystem = getPaymentSystemCode(selectedMethod);
-
-    try {
-      const payload = {
-        eventId: event.id,
-        tickets: ticketsData,
-        paymentSystem,
-        phoneNumber: phoneNumber.replace(/\s/g, ''),
-      };
-
-      await reserveTicketsMutation.mutateAsync(payload);
-      setStep('success');
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 5000);
-    } catch (error) {
-      console.error('Payment error details:', error);
-      setStep('error');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleMethodSelect = (method) => {
     setSelectedMethod(method);
     setPhoneNumber('');
@@ -742,35 +709,71 @@ const PurchaseSummaryModal = ({
     </>
   );
 
+  const handlePayment = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    const ticketsData = Object.entries(quantities)
+      .filter(([_, quantity]) => quantity > 0)
+      .map(([categoryId, quantity]) => ({
+        categoryId,
+        quantity,
+      }));
+
+    const paymentSystem = getPaymentSystemCode(selectedMethod);
+
+    try {
+      const payload = {
+        eventId: event.id,
+        tickets: ticketsData,
+        paymentSystem,
+        phoneNumber: phoneNumber.replace(/\s/g, ''),
+      };
+
+      await reserveTicketsMutation.mutateAsync(payload);
+      setStep('payment-pending');
+    } catch (error) {
+      console.error('Payment error details:', error);
+      setStep('error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const renderPaymentPending = () => (
+    <ResultContainer>
+      <IconWrapper className="pending">
+        <Smartphone size={40} />
+      </IconWrapper>
+      <Typography
+        sx={{ color: 'white', fontSize: '24px', fontWeight: 600, mb: 2 }}
+      >
+        Confirmation en attente
+      </Typography>
+
+      <Alert className="max-w-lg">
+        <AlertTitle className="text-white">
+          Une demande de paiement a été envoyée
+        </AlertTitle>
+        <AlertDescription className="text-gray-300">
+          Veuillez confirmer le paiement sur votre téléphone au {formattedPhone}
+          . Une fois confirmé, vos billets seront disponibles dans la section
+          "Mes Tickets".
+        </AlertDescription>
+      </Alert>
+
+      <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
+        <PayButton onClick={() => navigate('/tickets')} variant="outlined">
+          Voir mes tickets
+        </PayButton>
+        <PayButton onClick={onClose}>Fermer</PayButton>
+      </Box>
+    </ResultContainer>
+  );
+
   const renderResult = () => {
-    if (step === 'success') {
-      return (
-        <ResultContainer>
-          {showConfetti && (
-            <Confetti
-              width={width}
-              height={height}
-              recycle={false}
-              numberOfPieces={200}
-            />
-          )}
-          <IconWrapper className="success">
-            <CheckCircle size={40} />
-          </IconWrapper>
-          <Typography
-            sx={{ color: 'white', fontSize: '24px', fontWeight: 600, mb: 2 }}
-          >
-            Réservation réussie !
-          </Typography>
-          <Typography sx={{ color: '#9ca3af', fontSize: '16px', mb: 4 }}>
-            Vos tickets sont maintenant disponibles dans la section "Mes
-            Tickets"
-          </Typography>
-          <PayButton onClick={() => navigate('/tickets')}>
-            Voir mes tickets
-          </PayButton>
-        </ResultContainer>
-      );
+    if (step === 'payment-pending') {
+      return renderPaymentPending();
     }
 
     if (step === 'error') {
@@ -813,8 +816,8 @@ const PurchaseSummaryModal = ({
             ? 'Méthode de paiement'
             : step === 'phone-input'
               ? 'Numéro de téléphone'
-              : step === 'success'
-                ? 'Confirmation'
+              : step === 'payment-pending'
+                ? 'Confirmation de paiement'
                 : step === 'error'
                   ? 'Erreur'
                   : 'Détails de la réservation'}
@@ -825,7 +828,7 @@ const PurchaseSummaryModal = ({
         {step === 'method-selection' && renderPaymentMethodSelection()}
         {step === 'phone-input' && renderPhoneInput()}
         {step === 'summary' && renderSummary()}
-        {['success', 'error'].includes(step) && renderResult()}
+        {['payment-pending', 'error'].includes(step) && renderResult()}
       </ScrollableContent>
 
       {step === 'summary' && (

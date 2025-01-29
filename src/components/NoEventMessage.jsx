@@ -1,68 +1,103 @@
-// src/components/NoEventsMessage.jsx
+import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { CalendarOff } from 'lucide-react';
+import styled from 'styled-components';
 
-const NoEventsMessage = ({ category }) => {
+const StyledContainer = styled(Box)`
+  position: relative;
+  min-height: 300px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  background: linear-gradient(
+    135deg,
+    rgba(28, 28, 28, 0.8) 0%,
+    rgba(17, 17, 17, 0.9) 100%
+  );
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.2s ease-in-out;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+`;
+
+const IconWrapper = styled(Box)`
+  position: relative;
+  margin-bottom: 1.5rem;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    background: radial-gradient(
+      circle,
+      rgba(62, 207, 142, 0.2) 0%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    z-index: 0;
+  }
+`;
+
+const GradientText = styled(Typography)`
+  background: linear-gradient(90deg, #3ecf8e 30%, #45b681 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 600;
+  margin-bottom: 1rem;
+`;
+
+const TipBox = styled(Box)`
+  margin-top: 2rem;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  background: rgba(62, 207, 142, 0.08);
+  border: 1px solid rgba(62, 207, 142, 0.15);
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(62, 207, 142, 0.12);
+  }
+`;
+
+const NoEventsMessage = ({ category = 'disponible' }) => {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '400px',
-        width: '100%',
-        background:
-          'linear-gradient(180deg, rgba(35,35,35,0.6) 0%, rgba(19,19,19,0.8) 100%)',
-        borderRadius: '16px',
-        padding: '2rem',
-        textAlign: 'center',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.1)',
-      }}
-    >
-      <CalendarOff
-        size={64}
-        style={{
-          color: '#3ECF8E',
-          marginBottom: '1.5rem',
-          opacity: 0.9,
-        }}
-      />
-      <Typography
-        variant="h5"
-        sx={{
-          color: '#fff',
-          fontWeight: 600,
-          marginBottom: '1rem',
-          background: 'linear-gradient(90deg, #3ECF8E 0%, #4FA776 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        }}
-      >
+    <StyledContainer>
+      <IconWrapper>
+        <CalendarOff
+          size={48}
+          style={{
+            color: '#3ECF8E',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        />
+      </IconWrapper>
+
+      <GradientText variant="h5">
         Aucun événement {category.toLowerCase()} pour le moment
-      </Typography>
+      </GradientText>
+
       <Typography
         variant="body1"
         sx={{
-          color: '#909090',
-          maxWidth: '500px',
+          color: 'rgba(255, 255, 255, 0.7)',
+          maxWidth: '450px',
           lineHeight: 1.6,
         }}
       >
-        Nous n'avons pas encore d'événements dans cette catégorie, mais de
-        nouveaux événements sont ajoutés régulièrement. Revenez bientôt pour
-        découvrir les dernières nouveautés !
+        Nous n'avons pas encore d'événements dans cette catégorie. Revenez
+        bientôt pour découvrir les dernières nouveautés !
       </Typography>
-      <Box
-        sx={{
-          mt: 4,
-          p: 2,
-          borderRadius: '12px',
-          background: 'rgba(62, 207, 142, 0.1)',
-          border: '1px solid rgba(62, 207, 142, 0.2)',
-        }}
-      >
+
+      <TipBox>
         <Typography
           variant="body2"
           sx={{
@@ -70,11 +105,10 @@ const NoEventsMessage = ({ category }) => {
             fontStyle: 'italic',
           }}
         >
-          💡 Conseil: Vous pouvez explorer d'autres catégories ou revenir à
-          "Tout voir" pour découvrir nos événements disponibles.
+          💡 Explorez d'autres catégories ou revenez à "Tout voir"
         </Typography>
-      </Box>
-    </Box>
+      </TipBox>
+    </StyledContainer>
   );
 };
 
