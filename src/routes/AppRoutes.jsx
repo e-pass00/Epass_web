@@ -11,10 +11,13 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import CategoryBilletPage from '../pages/CatergoryBilletPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
+import AllPopularEvents from '../pages/AllPopularEvents';
+
 const AppRoutes = () => (
   <Routes>
     <Route path="/events/:id" element={<EventDetailsPage />} />
     <Route path="/category/:id" element={<CategoryBilletPage />} />
+    <Route path="/popular" element={<AllPopularEvents />} />
     <Route element={<Layout />}>
       <Route path="/" element={<HomePage />} />
 
@@ -29,7 +32,6 @@ const AppRoutes = () => (
     <Route path="/dashboard/:id" element={<EventDashboardPage />} />
     <Route path="/confirm" element={<ConfirmMailPage />} />
 
-    {/* Ajoutez la route 404 en dernier */}
     <Route path="*" element={<NotFoundPage />} />
   </Routes>
 );

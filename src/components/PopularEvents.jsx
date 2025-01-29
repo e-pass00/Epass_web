@@ -16,7 +16,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star';
 import { useEvents } from '../features/events/api/queries';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const OuterContainer = styled(Box)(({ theme }) => ({
   position: 'relative',
@@ -176,6 +176,7 @@ const ClickableEventCard = styled(EventCard)(({ theme }) => ({
 
 const PopularEvents = ({ activeCategory }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const containerRef = useRef(null);
   const [showLeftButton, setShowLeftButton] = useState(false);
   const [showRightButton, setShowRightButton] = useState(false);
@@ -190,6 +191,15 @@ const PopularEvents = ({ activeCategory }) => {
       setHasScroll(hasHorizontalScroll);
       setShowRightButton(hasHorizontalScroll);
     }
+  };
+
+  const handleViewAll = () => {
+    navigate('/popular', {
+      state: {
+        events: sortedEvents,
+        category: activeCategory,
+      },
+    });
   };
 
   useEffect(() => {
@@ -326,7 +336,7 @@ const PopularEvents = ({ activeCategory }) => {
             </Typography>
           </Box>
           {shouldShowViewAll && (
-            <ViewAllButton>
+            <ViewAllButton onClick={handleViewAll}>
               <Typography variant="body2">Tout afficher</Typography>
               <ArrowForwardIosIcon
                 style={{
