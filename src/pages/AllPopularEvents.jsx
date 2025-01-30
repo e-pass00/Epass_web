@@ -114,7 +114,7 @@ const EventsGrid = styled(Box)(({ theme }) => ({
 }));
 
 const EventCard = styled(Box)(({ theme }) => ({
-  backgroundColor: '#1c1b1b',
+  backgroundColor: '#1a1919',
 
   borderRadius: theme.spacing(2),
   overflow: 'hidden',
