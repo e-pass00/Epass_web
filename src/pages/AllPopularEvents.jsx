@@ -17,6 +17,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { format } from 'date-fns';
 import { useEvents } from '../features/events/api/queries';
+import { color } from 'framer-motion';
 
 const StyledAppBar = styled(AppBar)({
   backgroundColor: '#0A0A0A',
@@ -113,7 +114,8 @@ const EventsGrid = styled(Box)(({ theme }) => ({
 }));
 
 const EventCard = styled(Box)(({ theme }) => ({
-  backgroundColor: '#0D0D0D',
+  backgroundColor: '#1c1b1b',
+
   borderRadius: theme.spacing(2),
   overflow: 'hidden',
   cursor: 'pointer',
@@ -123,7 +125,8 @@ const EventCard = styled(Box)(({ theme }) => ({
   '&:hover': {
     transform: 'translateY(-4px)',
     backgroundColor: '#111111',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+
+    boxShadow: '0 4px 20px rgba(136, 50, 50, 0.3)',
     '& .eventImage': {
       transform: 'translate(-50%, -50%) scale(1.05)',
     },
