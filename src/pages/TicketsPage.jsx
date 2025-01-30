@@ -20,6 +20,7 @@ import {
   Close,
   LocationOn,
   ReceiptLong,
+  LocalActivity,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import EPassModal from '../components/EPassModal';
@@ -28,7 +29,6 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 const StyledCard = styled(motion.div)(({ theme, type }) => {
-  // Normaliser la catégorie en minuscules pour la comparaison
   const normalizedType = type?.toLowerCase();
 
   return {
@@ -79,16 +79,21 @@ const StickyHeader = styled(Box)(({ theme, scrolled }) => ({
   borderBottom: scrolled ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
 }));
 
-const EmptyStateContainer = styled(Box)(({ theme }) => ({
+const EmptyStateContainer = styled(motion.div)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
+  minHeight: '60vh',
   padding: theme.spacing(4),
-  minHeight: '300px',
-  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  borderRadius: theme.spacing(2),
-  margin: theme.spacing(2),
+  color: 'white',
+  textAlign: 'center',
+}));
+
+const EmptyStateIcon = styled(LocalActivity)(({ theme }) => ({
+  fontSize: '120px',
+  color: 'rgba(255, 255, 255, 0.1)',
+  marginBottom: theme.spacing(3),
 }));
 
 const DashedLine = styled(Box)({
@@ -128,33 +133,28 @@ const LoadingContainer = styled(Box)({
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
-  height: '100vh',
+  minHeight: '60vh',
 });
 
-const ErrorContainer = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  height: '100vh',
-  color: 'white',
-  gap: '16px',
-});
-
-const EmptyState = ({ message, icon: Icon }) => (
-  <EmptyStateContainer>
-    <Icon sx={{ fontSize: 64, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
-    <Typography
-      variant="h6"
-      sx={{ color: 'white', textAlign: 'center', mb: 1 }}
-    >
-      {message}
+const EmptyState = () => (
+  <EmptyStateContainer
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+  >
+    <EmptyStateIcon />
+    <Typography variant="h4" sx={{ mb: 2, fontWeight: 'bold' }}>
+      Pas encore de tickets ? 🎫
+    </Typography>
+    <Typography variant="h6" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+      C'est le moment parfait pour découvrir nos événements !
     </Typography>
     <Typography
-      variant="body2"
-      sx={{ color: 'rgba(255, 255, 255, 0.5)', textAlign: 'center' }}
+      variant="body1"
+      sx={{ color: 'rgba(255, 255, 255, 0.5)', maxWidth: '500px' }}
     >
-      Revenez plus tard pour voir vos e-pass ici
+      Explorez notre sélection d'événements exceptionnels et réservez vos places
+      pour vivre des moments inoubliables.
     </Typography>
   </EmptyStateContainer>
 );
@@ -162,9 +162,7 @@ const EmptyState = ({ message, icon: Icon }) => (
 const TicketsPage = () => {
   const theme = useTheme();
   const isAbove769 = useMediaQuery('(min-width:769px)');
-  const isMediumScreen = useMediaQuery('(max-width:768px)');
 
-  // Unified state object
   const [uiState, setUiState] = useState({
     scrolled: false,
     activeTab: 0,
@@ -172,13 +170,10 @@ const TicketsPage = () => {
     openModal: false,
   });
 
-  // Destructure state for easier access
   const { scrolled, activeTab, selectedTicket, openModal } = uiState;
 
-  // Query hook
-  const { data: ticketsData, isLoading, error } = useUserTickets();
+  const { data: ticketsData, isLoading } = useUserTickets();
 
-  // Event handlers
   const handleScroll = () => {
     const isScrolled = window.scrollY > 10;
     setUiState((prev) => ({ ...prev, scrolled: isScrolled }));
@@ -204,48 +199,20 @@ const TicketsPage = () => {
     }));
   };
 
-  // Effects
   useEffect(() => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Helpers
   const formatTime = (dateString) => {
     return format(new Date(dateString), 'HH:mm', { locale: fr });
   };
 
-  // Computed values
   const hasUpcomingTickets = ticketsData?.upcoming?.length > 0;
   const hasHistoryTickets = ticketsData?.history?.length > 0;
   const hasNoTickets = !hasUpcomingTickets && !hasHistoryTickets;
   const displayedTickets =
     activeTab === 0 ? ticketsData?.upcoming : ticketsData?.history;
-
-  if (isLoading) {
-    return (
-      <LoadingContainer>
-        <CircularProgress />
-      </LoadingContainer>
-    );
-  }
-
-  if (error) {
-    return (
-      <ErrorContainer>
-        <ReceiptLong sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.5)' }} />
-        <Typography variant="h6" sx={{ textAlign: 'center' }}>
-          Une erreur est survenue
-        </Typography>
-        <Typography
-          variant="body2"
-          sx={{ color: 'rgba(255, 255, 255, 0.7)', textAlign: 'center' }}
-        >
-          {error.message}
-        </Typography>
-      </ErrorContainer>
-    );
-  }
 
   return (
     <Box sx={{ bgcolor: '#131313', minHeight: '100vh', color: 'text.primary' }}>
@@ -290,128 +257,131 @@ const TicketsPage = () => {
       </StickyHeader>
 
       <Box sx={{ p: 2, mt: 2 }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {hasNoTickets ? (
-              <EmptyState
-                message="Vous n'avez pas encore de e-pass"
-                icon={ReceiptLong}
-              />
-            ) : displayedTickets?.length === 0 ? (
-              <EmptyState
-                message={
-                  activeTab === 0
-                    ? "Vous n'avez pas de e-pass à venir"
-                    : "Vous n'avez pas encore d'historique de e-pass"
-                }
-                icon={ReceiptLong}
-              />
-            ) : (
-              <Grid container spacing={2}>
-                {displayedTickets?.map((ticket) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={ticket.billetId}>
-                    <StyledCard
-                      type={ticket.categoryBillet}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleOpenModal(ticket)}
+        {isLoading ? (
+          <LoadingContainer>
+            <CircularProgress />
+          </LoadingContainer>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {hasNoTickets ? (
+                <EmptyState />
+              ) : displayedTickets?.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <Grid container spacing={2}>
+                  {displayedTickets?.map((ticket) => (
+                    <Grid
+                      item
+                      xs={12}
+                      sm={6}
+                      md={4}
+                      lg={3}
+                      key={ticket.billetId}
                     >
-                      {ticket.status === 'scanned' && (
-                        <ScannedBadge>Scanné</ScannedBadge>
-                      )}
-                      <DashedLine />
-                      <CardContent
-                        sx={{
-                          p: 2,
-                          height: '100%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                        }}
+                      <StyledCard
+                        type={ticket.categoryBillet}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleOpenModal(ticket)}
                       >
-                        <Box
+                        {ticket.status === 'scanned' && (
+                          <ScannedBadge>Scanné</ScannedBadge>
+                        )}
+                        <DashedLine />
+                        <CardContent
                           sx={{
+                            p: 2,
+                            height: '100%',
                             display: 'flex',
-                            alignItems: 'center',
-                            mb: 1,
-                            height: '50%',
+                            flexDirection: 'column',
                           }}
                         >
-                          <Avatar
-                            src={ticket.coverImage}
+                          <Box
                             sx={{
-                              width: 60,
-                              height: 60,
-                              mr: 2,
-                              borderRadius: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              mb: 1,
+                              height: '50%',
                             }}
-                          />
-                          <Typography
-                            variant="subtitle1"
-                            sx={{ color: 'white', fontWeight: 'bold' }}
                           >
-                            {ticket.eventName}
-                          </Typography>
-                        </Box>
-                        <EventInfo>
-                          <Box sx={{ position: 'relative', top: '30px' }}>
-                            <InfoItem>
-                              <AccessTime
-                                sx={{ color: 'white', mr: 1, fontSize: 16 }}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{ color: 'white' }}
-                              >
-                                {formatTime(ticket.startDate)}
-                              </Typography>
-                            </InfoItem>
-                            <InfoItem>
-                              <LocationOn
-                                sx={{ color: 'white', mr: 1, fontSize: 16 }}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{ color: 'white', marginRight: '62px' }}
-                              >
-                                {ticket.locationName}
-                              </Typography>
-                            </InfoItem>
+                            <Avatar
+                              src={ticket.coverImage}
+                              sx={{
+                                width: 60,
+                                height: 60,
+                                mr: 2,
+                                borderRadius: '12px',
+                              }}
+                            />
+                            <Typography
+                              variant="subtitle1"
+                              sx={{ color: 'white', fontWeight: 'bold' }}
+                            >
+                              {ticket.eventName}
+                            </Typography>
                           </Box>
-                          <Chip
-                            label={ticket.categoryBillet}
-                            size="small"
-                            sx={{
-                              bgcolor:
-                                ticket.categoryBillet?.toLowerCase() ===
-                                'carré or'
-                                  ? 'rgba(255, 215, 0, 1)'
-                                  : ticket.categoryBillet?.toLowerCase() ===
-                                      'vip'
-                                    ? 'rgba(0, 0, 0, 0.5)'
+                          <EventInfo>
+                            <Box sx={{ position: 'relative', top: '30px' }}>
+                              <InfoItem>
+                                <AccessTime
+                                  sx={{ color: 'white', mr: 1, fontSize: 16 }}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{ color: 'white' }}
+                                >
+                                  {formatTime(ticket.startDate)}
+                                </Typography>
+                              </InfoItem>
+                              <InfoItem>
+                                <LocationOn
+                                  sx={{ color: 'white', mr: 1, fontSize: 16 }}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{ color: 'white', marginRight: '62px' }}
+                                >
+                                  {ticket.locationName}
+                                </Typography>
+                              </InfoItem>
+                            </Box>
+                            <Chip
+                              label={ticket.categoryBillet}
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  ticket.categoryBillet?.toLowerCase() ===
+                                  'carré or'
+                                    ? 'rgba(255, 215, 0, 1)'
                                     : ticket.categoryBillet?.toLowerCase() ===
-                                        'vvip'
-                                      ? 'rgba(129, 38, 125, 1)'
-                                      : 'rgba(255,255,255,0.2)',
-                              color: 'white',
-                              fontWeight: 'bold',
-                              alignSelf: 'flex-end',
-                              mt: 1,
-                            }}
-                          />
-                        </EventInfo>
-                      </CardContent>
-                    </StyledCard>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </motion.div>
-        </AnimatePresence>
+                                        'vip'
+                                      ? 'rgba(0, 0, 0, 0.5)'
+                                      : ticket.categoryBillet?.toLowerCase() ===
+                                          'vvip'
+                                        ? 'rgba(129, 38, 125, 1)'
+                                        : 'rgba(255,255,255,0.2)',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                alignSelf: 'flex-end',
+                                mt: 1,
+                              }}
+                            />
+                          </EventInfo>
+                        </CardContent>
+                      </StyledCard>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </Box>
 
       <Modal
