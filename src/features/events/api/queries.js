@@ -3,7 +3,7 @@ import { useFavoritesStore } from '../stores/favoritesStores';
 import useAuthStore from '../../auth/stores/authStore';
 import { auth } from '../../../config/firebase';
 
-const API_URL = 'https://api-fijfw4ptuq-uc.a.run.app';
+const API_URL = 'https://cloudfunctions-api-fijfw4ptuq-uc.a.run.app';
 
 // Fonction utilitaire modifiée pour obtenir le token Firebase
 const getFirebaseToken = async () => {
@@ -29,7 +29,7 @@ export const eventKeys = {
   userNotifications: () => [...eventKeys.all, 'userNotifications'],
   transferTicket: (ticketId) => [...eventKeys.all, 'transfer', ticketId],
   create: () => [...eventKeys.all, 'create'],
-  // Nouvelle clé pour la réservation
+
   reservation: (eventId) => [...eventKeys.all, 'reservation', eventId],
   dashboard: (eventId) => [...eventKeys.all, 'dashboard', eventId],
 };
