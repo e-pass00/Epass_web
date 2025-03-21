@@ -396,37 +396,21 @@ export const useUserEvents = () => {
   });
 };
 
-const createEvent = async ({
-  eventData,
-  ticketCategories,
-  coverImage,
-  coverVideo,
-}) => {
+const createEvent = async (formData) => {
   try {
     const token = await getFirebaseToken();
     if (!token) {
       throw new Error("Token d'authentification non disponible");
     }
 
-    // Création du FormData
-    const formData = new FormData();
-
-    // Ajout des données de l'événement
-    formData.append('event', JSON.stringify(eventData));
-    formData.append('ticketCategories', JSON.stringify(ticketCategories));
-
-    // Ajout de l'image de couverture (obligatoire)
-    if (!coverImage) {
-      throw new Error("L'image de couverture est obligatoire");
-    }
-    formData.append('coverImage', coverImage);
-
-    // Ajout de la vidéo de couverture (optionnelle)
-    if (coverVideo) {
-      formData.append('coverVideo', coverVideo);
+    console.log('Contenu du FormData avant envoi:');
+    for (const [key, value] of formData.entries()) {
+      console.log(
+        `${key}: ${value instanceof File ? `File (${value.name})` : value}`
+      );
     }
 
-    const response = await fetch(`${API_URL}/events`, {
+    const response = await fetch(`${API_URL}/events/`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -435,36 +419,15 @@ const createEvent = async ({
     });
 
     const data = await response.json();
+    console.log('Réponse complète du serveur:', data); // Log détaillé
 
     if (!response.ok) {
       const errorMessage = {
         status: response.status,
         message: data.message || 'Une erreur est survenue',
         error: data.error || 'UNKNOWN_ERROR',
-        details: data.details,
+        details: data.details || data.extra,
       };
-
-      switch (response.status) {
-        case 400:
-          errorMessage.message = data.message || 'Données invalides';
-          break;
-        case 401:
-          errorMessage.message = 'Non autorisé - Veuillez vous reconnecter';
-          errorMessage.error = 'UNAUTHORIZED';
-          break;
-        case 403:
-          errorMessage.message =
-            "Vous n'avez pas les droits d'organisateur nécessaires";
-          errorMessage.error = 'FORBIDDEN';
-          break;
-        case 500:
-          errorMessage.message =
-            'Erreur serveur - Veuillez réessayer plus tard';
-          errorMessage.error = 'SERVER_ERROR';
-          break;
-      }
-
-      console.error("Erreur lors de la création de l'événement:", errorMessage);
       throw errorMessage;
     }
 
@@ -476,27 +439,10 @@ const createEvent = async ({
 
     return data.data;
   } catch (error) {
-    if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-      throw {
-        status: 0,
-        message:
-          'Impossible de se connecter au serveur. Vérifiez votre connexion internet.',
-        error: 'NETWORK_ERROR',
-      };
-    }
-
-    if (error.message === "Token d'authentification non disponible") {
-      throw {
-        status: 401,
-        message: error.message,
-        error: 'AUTH_ERROR',
-      };
-    }
-
+    console.error('Erreur dans createEvent:', error);
     throw error;
   }
 };
-
 export const useCreateEvent = () => {
   const queryClient = useQueryClient();
 
@@ -875,29 +821,52 @@ export const useUserNotifications = () => {
   });
 };
 
+/**
+ * Fonction pour récupérer les catégories de billets d'un événement
+ * @param {string} eventId - L'identifiant de l'événement
+ * @returns {Promise<Array>} Les catégories de billets de l'événement
+ */
 const fetchEventTicketCategories = async (eventId) => {
   try {
     if (!eventId) {
       throw new Error("L'ID de l'événement est requis");
     }
 
+    const token = await getFirebaseToken();
+
+    if (!token) {
+      throw new Error("Token d'authentification non disponible");
+    }
+
     const response = await fetch(
-      `${API_URL}/eventsBillets/categoriesBillets/${eventId}`
+      `${API_URL}/eventsBillets/categoriesBillets/${eventId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
     );
+
     const data = await response.json();
 
     // Vérification si la réponse n'est pas ok (status >= 400)
     if (!response.ok) {
-      switch (response.status) {
-        case 400:
-          throw new Error(data.message || "L'ID de l'événement est manquant");
-        case 404:
-          throw new Error(data.message || 'Aucune catégorie de billet trouvée');
-        case 500:
-          throw new Error(data.message || 'Erreur serveur');
-        default:
-          throw new Error(data.message || 'Une erreur est survenue');
-      }
+      const errorMessage = {
+        status: response.status,
+        message: data.message || 'Une erreur est survenue',
+        error: data.error || 'UNKNOWN_ERROR',
+        details: data.details,
+      };
+
+      // Log de l'erreur pour le débogage
+      console.error('Erreur serveur:', errorMessage);
+
+      // On lance une nouvelle erreur avec les détails
+      throw {
+        ...errorMessage,
+        isServerError: true, // Flag pour identifier les erreurs serveur
+      };
     }
 
     // Vérification de la structure de la réponse
@@ -912,14 +881,29 @@ const fetchEventTicketCategories = async (eventId) => {
     if (!Array.isArray(data.data)) {
       throw new Error('Format de données invalide');
     }
-    console.log(data.data);
+
+    console.log('Catégories de billets récupérées:', data.data);
     return data.data;
   } catch (error) {
-    // Gestion des erreurs réseau
-    if (error.name === 'TypeError' || error.message === 'Failed to fetch') {
-      throw new Error(
-        'Erreur de connexion - Vérifiez votre connexion internet'
-      );
+    // Gestion spécifique des erreurs réseau
+    if (!error.isServerError) {
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        throw {
+          status: 0,
+          message:
+            'Impossible de se connecter au serveur. Vérifiez votre connexion internet.',
+          error: 'NETWORK_ERROR',
+        };
+      }
+
+      // Erreur lors de la récupération du token
+      if (error.message === "Token d'authentification non disponible") {
+        throw {
+          status: 401,
+          message: error.message,
+          error: 'AUTH_ERROR',
+        };
+      }
     }
 
     // Propagation de l'erreur
@@ -931,14 +915,21 @@ const fetchEventTicketCategories = async (eventId) => {
   }
 };
 
+/**
+ * Hook personnalisé pour récupérer les catégories de billets d'un événement
+ * @param {string} eventId - L'identifiant de l'événement
+ * @returns {Object} Objet contenant les données et l'état de la requête
+ */
 export const useEventTicketCategories = (eventId) => {
+  const { user } = useAuthStore();
+
   return useQuery({
     queryKey: eventKeys.ticketCategories(eventId),
     queryFn: () => fetchEventTicketCategories(eventId),
-    enabled: !!eventId,
-    staleTime: 2000, // Cache valide pendant 5 minutes
+    enabled: !!eventId && !!user,
+    staleTime: 2 * 60 * 1000, // 2 minutes
     select: (data) => {
-      // Vous pouvez ajouter ici une transformation des données si nécessaire
+      // Transformation des données si nécessaire
       return data.map((category) => ({
         ...category,
         price: parseFloat(category.price), // Assure que le prix est un nombre
@@ -946,6 +937,10 @@ export const useEventTicketCategories = (eventId) => {
     },
   });
 };
+/**
+ * Fonction pour récupérer les tickets de l'utilisateur depuis l'API
+ * @returns {Promise<Array>} Les tickets de l'utilisateur
+ */
 const fetchUserTickets = async () => {
   try {
     const token = await getFirebaseToken();
@@ -982,12 +977,12 @@ const fetchUserTickets = async () => {
       };
     }
 
-    // Vérification supplémentaire de la structure de la réponse
+    // Vérification de la structure de la réponse
     if (!data.success || !data.data) {
       throw new Error('Format de réponse invalide');
     }
 
-    console.log(data.data);
+    console.log('Tickets récupérés:', data.data);
     return data.data;
   } catch (error) {
     // Gestion spécifique des erreurs réseau
@@ -1016,6 +1011,10 @@ const fetchUserTickets = async () => {
   }
 };
 
+/**
+ * Hook personnalisé pour récupérer et manipuler les tickets de l'utilisateur
+ * @returns {Object} Objet contenant les tickets et l'état de la requête
+ */
 export const useUserTickets = () => {
   const { user } = useAuthStore();
 
@@ -1023,13 +1022,20 @@ export const useUserTickets = () => {
     queryKey: eventKeys.userTickets(),
     queryFn: fetchUserTickets,
     enabled: !!user,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
     select: (data) => {
       if (!data) return { upcoming: [], history: [] };
 
+      // Adaptation aux statuts retournés par le backend
       return {
-        upcoming: data.filter((ticket) => ticket.status === 'available'),
-        history: data.filter((ticket) => ticket.status === 'scanned'),
+        // Les tickets "valide" sans scanDate sont considérés comme "upcoming"
+        upcoming: data.filter(
+          (ticket) => ticket.status === 'valide' && !ticket.scanDate
+        ),
+        // Les tickets "valide" avec scanDate sont considérés comme "scanned" pour l'historique
+        history: data.filter(
+          (ticket) => ticket.status === 'valide' && ticket.scanDate
+        ),
       };
     },
   });
@@ -1113,25 +1119,24 @@ export const useFavoriteEvents = () => {
 
 export const toggleEventFavorite = async (eventId) => {
   try {
-    // Obtention du token Firebase
+    if (!eventId || typeof eventId !== 'string' || eventId.trim() === '') {
+      throw new Error('ID de l’événement invalide');
+    }
     const token = await getFirebaseToken();
-
     const response = await fetch(`${API_URL}/events/Favorites/toggle`, {
-      method: 'POST',
+      method: 'PATCH', // Corrigé de POST à PATCH
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ eventId }),
     });
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       throw new Error(
         errorData?.message || 'Erreur lors de la mise à jour des favoris'
       );
     }
-
     const data = await response.json();
     return data;
   } catch (error) {
@@ -1148,14 +1153,15 @@ export const useToggleFavorite = () => {
   return useMutation({
     mutationFn: toggleEventFavorite,
     onMutate: async (eventId) => {
-      // Vérification de l'authentification
       if (!user) {
         throw new Error('Utilisateur non authentifié');
+      }
+      if (!eventId || typeof eventId !== 'string' || eventId.trim() === '') {
+        throw new Error('ID de l’événement invalide');
       }
     },
     onSuccess: (data, eventId) => {
       queryClient.invalidateQueries(eventKeys.detail(eventId));
-
       if (data.success) {
         if (data.message.includes('ajouté')) {
           addFavorite(eventId);
@@ -1166,17 +1172,10 @@ export const useToggleFavorite = () => {
     },
     onError: (error) => {
       console.error('Erreur lors du toggle favorite:', error);
+      // Vous pouvez ajouter une notification ici, par exemple avec react-toastify
+      // toast.error(`Erreur : ${error.message}`);
     },
   });
-};
-
-// Les autres fonctions restent inchangées
-export const fetchEvents = async () => {
-  const response = await fetch(`${API_URL}/eventsBillets`);
-  if (!response.ok) {
-    throw new Error('Erreur lors du chargement des événements');
-  }
-  return await response.json();
 };
 
 const fetchEventById = async (id) => {
@@ -1201,6 +1200,15 @@ export const useEvent = (eventId) => {
     staleTime: 2000,
     enabled: !!eventId,
   });
+};
+
+export const fetchEvents = async () => {
+  const response = await fetch(`${API_URL}/eventsBillets`);
+  if (!response.ok) {
+    throw new Error('Erreur lors du chargement des événements');
+  }
+  const result = await response.json();
+  return result.data; // Retourner uniquement le tableau d'événements
 };
 
 export const useEvents = () => {

@@ -7,6 +7,7 @@ import {
   signInWithPopup,
   sendEmailVerification,
   onAuthStateChanged,
+  sendPasswordResetEmail, // Ajout de cette fonction
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../../config/firebase';
@@ -238,6 +239,32 @@ const useAuthStore = create((set, get) => ({
       }
 
       return firebaseUser;
+    } catch (error) {
+      const errorMessage = error.code
+        ? getAuthErrorMessage(error)
+        : error.message;
+      set({ error: errorMessage, loading: false });
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Nouvelle fonction pour la réinitialisation du mot de passe
+  resetPassword: async (email) => {
+    try {
+      if (!email) {
+        throw new Error('Veuillez indiquer votre adresse email');
+      }
+
+      set({ loading: true, error: null });
+
+      // Envoi de l'email de réinitialisation
+      await sendPasswordResetEmail(auth, email, {
+        url: 'https://epass-ten.vercel.app/login', // URL de redirection après réinitialisation
+      });
+
+      set({ loading: false });
+
+      return true;
     } catch (error) {
       const errorMessage = error.code
         ? getAuthErrorMessage(error)

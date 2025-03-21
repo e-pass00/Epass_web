@@ -363,7 +363,7 @@ const EventManagementModal = ({ open, onClose }) => {
                 <StatusBadge
                   style={{ backgroundColor: getStatusBadgeColor(event.state) }}
                 >
-                  {event.state}
+                  {event.status}
                 </StatusBadge>
               </EventDetails>
             </EventContent>

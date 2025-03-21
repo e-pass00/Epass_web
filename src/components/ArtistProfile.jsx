@@ -181,6 +181,36 @@ const ExitButton = styled.button`
   }
 `;
 
+// Fixed BottomBar styled component with proper border radius
+const BottomBar = styled(Box)`
+  padding: 16px;
+  border-top: 1px solid #232323;
+  border-radius: 20px 20px 0 0;
+  border-left: ${({ isMobile }) => (isMobile ? 'none' : '1px solid #232323')};
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1a1a1a;
+  width: 100%;
+  position: ${({ isMobile }) => (isMobile ? 'fixed' : 'relative')};
+  bottom: 0;
+  z-index: 1;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background-color: #1a1a1a;
+    border-radius: 20px 20px 0 0;
+    z-index: -1;
+  }
+`;
+
 // Helper functions
 const formatDate = (dateString) => {
   try {
@@ -410,7 +440,7 @@ const ArtistProfile = ({ event: rawEvent }) => {
 
             <Box sx={{ mt: 4, textAlign: 'center' }}>
               <Typography variant="h5" sx={{ color: '#fff', mb: 2 }}>
-                Ne manquez pas cet événement exceptionnel !
+                Ne manquez pas cet événement !
               </Typography>
               {selectedCategoryData?.availableQuantity > 0 && (
                 <Button
@@ -761,23 +791,7 @@ const ArtistProfile = ({ event: rawEvent }) => {
               )}
           </CardContent>
 
-          <Box
-            sx={{
-              p: 2,
-              borderTop: '1px solid',
-              borderColor: '#232323',
-              borderRadius: '20px 20px 0 0',
-              borderLeft: !isMobile ? '1px solid #232323' : '',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              backgroundColor: '#131313',
-              width: '100%',
-              position: isMobile ? 'fixed' : 'sticky',
-              bottom: 0,
-              zIndex: 1,
-            }}
-          >
+          <BottomBar isMobile={isMobile}>
             <Typography
               variant="h6"
               color="#3ECF8E"
@@ -809,7 +823,7 @@ const ArtistProfile = ({ event: rawEvent }) => {
             >
               {selectedCategoryData?.availableQuantity ? 'Réserver' : 'Complet'}
             </Button>
-          </Box>
+          </BottomBar>
         </Card>
       </Grid>
     </Grid>

@@ -14,7 +14,12 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { Close, Visibility, VisibilityOff } from '@mui/icons-material';
+import {
+  Close,
+  Visibility,
+  VisibilityOff,
+  ArrowBack,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../features/auth/stores/authStore';
 
@@ -76,6 +81,16 @@ const SwitchText = styled(Typography)(({ isMobile }) => ({
   },
 }));
 
+const ForgotPasswordText = styled(Typography)(({ isMobile }) => ({
+  textAlign: 'center',
+  marginTop: '8px',
+  fontSize: '14px',
+  cursor: isMobile ? 'default' : 'pointer',
+  '&:hover': {
+    textDecoration: isMobile ? 'none' : 'underline',
+  },
+}));
+
 const LoadingOverlay = styled(Box)({
   position: 'absolute',
   top: 0,
@@ -120,6 +135,8 @@ const AuthModal = ({ open, onClose }) => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -131,7 +148,8 @@ const AuthModal = ({ open, onClose }) => {
   const [formErrors, setFormErrors] = useState({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const { signIn, signUp, signInWithGoogle, error, loading } = useAuthStore();
+  const { signIn, signUp, signInWithGoogle, resetPassword, error, loading } =
+    useAuthStore();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -150,11 +168,15 @@ const AuthModal = ({ open, onClose }) => {
       errors.email = 'Adresse email invalide';
     }
 
-    if (formData.password.length < 6) {
+    if (!isForgotPassword && formData.password.length < 6) {
       errors.password = 'Le mot de passe doit contenir au moins 6 caractères';
     }
 
-    if (!isLogin && formData.password !== formData.confirmPassword) {
+    if (
+      !isLogin &&
+      !isForgotPassword &&
+      formData.password !== formData.confirmPassword
+    ) {
       errors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
 
@@ -171,7 +193,10 @@ const AuthModal = ({ open, onClose }) => {
     }
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        await resetPassword(formData.email);
+        setResetEmailSent(true);
+      } else if (isLogin) {
         await signIn(formData.email, formData.password);
       } else {
         await signUp(formData.email, formData.password, formData.username);
@@ -210,6 +235,8 @@ const AuthModal = ({ open, onClose }) => {
     });
     setFormErrors({});
     setIsGoogleLoading(false);
+    setIsForgotPassword(false);
+    setResetEmailSent(false);
   };
 
   // Réinitialiser le formulaire à la fermeture
@@ -219,44 +246,96 @@ const AuthModal = ({ open, onClose }) => {
     }
   }, [open]);
 
-  return (
-    <StyledModal
-      open={open}
-      onClose={() => {
-        if (!loading && !isGoogleLoading) {
-          onClose();
-          resetForm();
-        }
-      }}
-      sx={{
-        alignItems: isMobile ? 'flex-start' : 'center',
-      }}
-    >
-      <ModalContent isMobile={isMobile}>
-        {(loading || isGoogleLoading) && (
-          <LoadingOverlay>
-            <CircularProgress />
-          </LoadingOverlay>
-        )}
+  // Contenu du modal en fonction de l'état (login, inscription, mot de passe oublié)
+  const renderContent = () => {
+    if (isForgotPassword) {
+      return (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <IconButton
+              onClick={() => {
+                setIsForgotPassword(false);
+                setResetEmailSent(false);
+              }}
+              sx={{ mr: 1 }}
+              disabled={loading}
+            >
+              <ArrowBack />
+            </IconButton>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              Réinitialiser le mot de passe
+            </Typography>
+          </Box>
 
-        <IconButton
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: 'text.secondary',
-          }}
-          onClick={() => {
-            if (!loading && !isGoogleLoading) {
-              onClose();
-              resetForm();
-            }
-          }}
-          disabled={loading || isGoogleLoading}
-        >
-          <Close />
-        </IconButton>
+          {resetEmailSent ? (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Un email de réinitialisation a été envoyé à {formData.email}.
+              Veuillez vérifier votre boîte de réception et suivre les
+              instructions.
+            </Alert>
+          ) : (
+            <>
+              <Typography variant="body2" sx={{ mb: 3 }}>
+                Entrez votre adresse email pour recevoir un lien de
+                réinitialisation du mot de passe.
+              </Typography>
 
+              {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {error}
+                </Alert>
+              )}
+
+              <Form onSubmit={handleSubmit}>
+                <TextField
+                  name="email"
+                  label="Email"
+                  type="email"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.email}
+                  onChange={handleChange}
+                  error={!!formErrors.email}
+                  helperText={formErrors.email}
+                  required
+                  disabled={loading}
+                />
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  disabled={loading}
+                  sx={{
+                    background:
+                      'linear-gradient(45deg, #2193b0 30%, #3ECF8E 90%)',
+                    color: 'white',
+                    padding: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': {
+                      background:
+                        'linear-gradient(45deg, #1c7a94 30%, #35b77d 90%)',
+                    },
+                    '&.Mui-disabled': {
+                      background: 'linear-gradient(45deg, #ccc 30%, #ddd 90%)',
+                    },
+                  }}
+                >
+                  {loading
+                    ? 'Chargement...'
+                    : 'Envoyer le lien de réinitialisation'}
+                </Button>
+              </Form>
+            </>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <>
         <Typography
           variant="h5"
           align="center"
@@ -389,6 +468,26 @@ const AuthModal = ({ open, onClose }) => {
                 : "S'inscrire"}
           </Button>
 
+          {isLogin && (
+            <ForgotPasswordText
+              isMobile={isMobile}
+              variant="body2"
+              color="primary"
+              onClick={() => {
+                if (!loading && !isGoogleLoading) {
+                  setIsForgotPassword(true);
+                }
+              }}
+              sx={{
+                my: 1,
+                pointerEvents: loading || isGoogleLoading ? 'none' : 'auto',
+                opacity: loading || isGoogleLoading ? 0.5 : 1,
+              }}
+            >
+              Mot de passe oublié ?
+            </ForgotPasswordText>
+          )}
+
           <Divider sx={{ my: 1 }}>ou</Divider>
 
           <GoogleButton
@@ -423,6 +522,49 @@ const AuthModal = ({ open, onClose }) => {
             ? "Pas encore de compte ? S'inscrire"
             : 'Déjà un compte ? Se connecter'}
         </SwitchText>
+      </>
+    );
+  };
+
+  return (
+    <StyledModal
+      open={open}
+      onClose={() => {
+        if (!loading && !isGoogleLoading) {
+          onClose();
+          resetForm();
+        }
+      }}
+      sx={{
+        alignItems: isMobile ? 'flex-start' : 'center',
+      }}
+    >
+      <ModalContent isMobile={isMobile}>
+        {(loading || isGoogleLoading) && (
+          <LoadingOverlay>
+            <CircularProgress />
+          </LoadingOverlay>
+        )}
+
+        <IconButton
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: 'text.secondary',
+          }}
+          onClick={() => {
+            if (!loading && !isGoogleLoading) {
+              onClose();
+              resetForm();
+            }
+          }}
+          disabled={loading || isGoogleLoading}
+        >
+          <Close />
+        </IconButton>
+
+        {renderContent()}
       </ModalContent>
     </StyledModal>
   );

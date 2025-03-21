@@ -60,9 +60,9 @@ const EventCard = styled(Card)(({ theme }) => ({
   flexShrink: 0,
   backgroundColor: '#1E1E1E',
   width: '86vw',
-
   [theme.breakpoints.up('sm')]: {
     width: '35vw',
+    cursor: 'pointer', // Cursor pointer uniquement sur les grands écrans (sm et plus)
   },
   [theme.breakpoints.up('md')]: {
     width: '26vw',
@@ -204,11 +204,9 @@ const PopularEvents = ({ activeCategory }) => {
 
   useEffect(() => {
     checkForScroll();
-
     const handleResize = () => {
       checkForScroll();
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [eventsData]);
@@ -217,7 +215,6 @@ const PopularEvents = ({ activeCategory }) => {
     if (containerRef.current && hasScroll) {
       const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
       const scrollRight = scrollWidth - clientWidth - scrollLeft;
-
       setShowLeftButton(scrollLeft > 20);
       setShowRightButton(scrollRight > 20);
     }
@@ -252,26 +249,30 @@ const PopularEvents = ({ activeCategory }) => {
     return <Typography color="#F1F1F1">Erreur: {error.message}</Typography>;
   }
 
-  // Filter events based on category
-  const filteredEvents = eventsData?.data
-    ? eventsData.data.filter((event) =>
+  // Filtrage corrigé : suppression de .data
+  const filteredEvents = eventsData
+    ? eventsData.filter((event) =>
         activeCategory === 'Tout voir'
           ? true
           : event.category === activeCategory
       )
     : [];
 
-  // Return early if no events for specific category (not "Tout voir")
+  // Logs pour débogage
+  console.log('activeCategory:', activeCategory);
+  console.log('eventsData:', eventsData);
+  console.log('filteredEvents:', filteredEvents);
+
   if (activeCategory !== 'Tout voir' && filteredEvents.length === 0) {
     return null;
   }
 
-  // Sort events by popularity
+  // Tri par popularité
   const sortedEvents = [...filteredEvents].sort(
     (a, b) => b.popularity - a.popularity
   );
 
-  // Apply display rules
+  // Règles d'affichage
   const getDisplayedEvents = () => {
     if (activeCategory === 'Tout voir') {
       return sortedEvents.slice(0, 15);
@@ -279,7 +280,6 @@ const PopularEvents = ({ activeCategory }) => {
 
     if (isMobile) {
       const totalEvents = sortedEvents.length;
-
       if (totalEvents === 1) return sortedEvents;
       if (totalEvents <= 3) return sortedEvents.slice(0, totalEvents - 1);
       if (totalEvents <= 5) return sortedEvents.slice(0, 2);
@@ -329,7 +329,6 @@ const PopularEvents = ({ activeCategory }) => {
               fontSize="20px"
               fontWeight="bold"
               color="#F1F1F1"
-              fontFamily="Roboto"
             >
               Populaires{' '}
               {activeCategory !== 'Tout voir' && `- ${activeCategory}`}
@@ -381,9 +380,9 @@ const PopularEvents = ({ activeCategory }) => {
                 <Link
                   to={`/events/${event.id}`}
                   style={{ textDecoration: 'none', cursor: 'default' }}
+                  key={event.id}
                 >
                   <EventCard
-                    key={event.id}
                     sx={{
                       mr: 2,
                       ml: index === 0 ? 2 : 0,

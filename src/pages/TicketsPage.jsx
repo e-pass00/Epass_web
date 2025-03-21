@@ -28,6 +28,7 @@ import { useUserTickets } from '../features/events/api/queries';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
+// Styles restent les mêmes...
 const StyledCard = styled(motion.div)(({ theme, type }) => {
   const normalizedType = type?.toLowerCase();
 
@@ -205,6 +206,7 @@ const TicketsPage = () => {
   }, []);
 
   const formatTime = (dateString) => {
+    if (!dateString) return '--:--';
     return format(new Date(dateString), 'HH:mm', { locale: fr });
   };
 
@@ -290,9 +292,7 @@ const TicketsPage = () => {
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleOpenModal(ticket)}
                       >
-                        {ticket.status === 'scanned' && (
-                          <ScannedBadge>Scanné</ScannedBadge>
-                        )}
+                        {activeTab === 1 && <ScannedBadge>Scanné</ScannedBadge>}
                         <DashedLine />
                         <CardContent
                           sx={{

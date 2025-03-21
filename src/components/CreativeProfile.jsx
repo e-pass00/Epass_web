@@ -12,7 +12,7 @@ const ProfileContainer = styled.div`
 
   @media (min-width: 769px) {
     padding: 2rem;
-    max-width: 1200px;
+    max-width: 720px;
     margin: 0 auto;
   }
 `;
@@ -39,16 +39,11 @@ const ContentGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
-  padding: 2rem;
+  padding: 2rem 1rem;
 
   @media (min-width: 769px) {
-    grid-template-columns: 300px 1fr;
-    gap: 4rem;
-  }
-
-  @media (min-width: 1056px) and (max-width: 1200px) {
-    grid-template-columns: 250px 1fr;
-    gap: 3rem;
+    grid-template-columns: 250px 1fr; /* Changed from 200px to 250px */
+    gap: 2rem;
   }
 `;
 
@@ -60,10 +55,6 @@ const ProfileSection = styled.div`
 
   @media (min-width: 769px) {
     border-right: 1px solid rgba(255, 255, 255, 0.1);
-    padding-right: 2rem;
-  }
-
-  @media (min-width: 1056px) and (max-width: 1200px) {
     padding-right: 1.5rem;
   }
 `;
@@ -108,6 +99,7 @@ const Badge = styled.div`
   gap: 0.5rem;
   margin-top: 0.5rem;
 `;
+
 const Stats = styled.div`
   display: flex;
   gap: 1.5rem;
@@ -115,13 +107,13 @@ const Stats = styled.div`
   padding: 1rem;
   border-radius: 16px;
   width: auto;
-  min-width: 200px;
+  min-width: 180px;
   justify-content: center;
 `;
 
 const StatItem = styled.div`
   text-align: center;
-  min-width: 70px;
+  min-width: 60px;
 `;
 
 const StatValue = styled(Typography)`
@@ -136,51 +128,45 @@ const StatLabel = styled(Typography)`
   white-space: nowrap;
 `;
 
-const MenuGrid = styled.div`
-  display: grid;
-  gap: 1.25rem;
-  align-content: start;
+const RightContentWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  width: 100%;
   height: 100%;
+`;
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-
-  @media (min-width: 769px) and (max-width: 1055px) {
-    grid-template-columns: 1fr;
-  }
-
-  @media (min-width: 1056px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+const MenuGrid = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  max-width: 280px;
 `;
 
 const MenuItem = styled.div`
   background: rgba(255, 255, 255, 0.03);
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 1rem;
   border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  height: 56px;
-  min-width: 200px;
+  height: 48px;
+  width: 100%;
 
   &:hover {
     background: rgba(255, 255, 255, 0.06);
     transform: translateY(-2px);
   }
-
-  @media (min-width: 769px) and (max-width: 1055px) {
-    max-width: 100%;
-  }
 `;
 
 const IconWrapper = styled.div`
-  min-width: 32px;
-  width: 32px;
-  height: 32px;
+  min-width: 28px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   background: rgba(20, 184, 166, 0.1);
   display: flex;
@@ -191,11 +177,9 @@ const IconWrapper = styled.div`
 
 const MenuText = styled(Typography)`
   color: white;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 1;
 `;
 
 const CreativeProfile = () => {
@@ -218,7 +202,7 @@ const CreativeProfile = () => {
     );
   }
 
-  const isOrganizer = user?.role === 'organisateur';
+  const isOrganizer = user?.role == 'Organisateur';
 
   const menuItems = [
     ...(isOrganizer
@@ -286,16 +270,18 @@ const CreativeProfile = () => {
             )}
           </ProfileSection>
 
-          <MenuGrid>
-            {menuItems.map((item, index) => (
-              <MenuItem key={index} onClick={item.onClick}>
-                <IconWrapper>
-                  <item.icon size={18} />
-                </IconWrapper>
-                <MenuText>{item.label}</MenuText>
-              </MenuItem>
-            ))}
-          </MenuGrid>
+          <RightContentWrapper>
+            <MenuGrid>
+              {menuItems.map((item, index) => (
+                <MenuItem key={index} onClick={item.onClick}>
+                  <IconWrapper>
+                    <item.icon size={16} />
+                  </IconWrapper>
+                  <MenuText>{item.label}</MenuText>
+                </MenuItem>
+              ))}
+            </MenuGrid>
+          </RightContentWrapper>
         </ContentGrid>
       </StyledCard>
       <PersonalInfoModal

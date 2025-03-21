@@ -34,7 +34,7 @@ const HomePage = () => {
     );
   }
 
-  const filteredEvents = events.data?.filter((event) => {
+  const filteredEvents = events?.filter((event) => {
     const matchesCategory =
       activeCategory === 'Tout voir' || event.category === activeCategory;
 
@@ -47,7 +47,6 @@ const HomePage = () => {
 
     return matchesCategory && matchesSearch;
   });
-
   const showNoSearchResults =
     searchTerm.trim() && (!filteredEvents || filteredEvents.length === 0);
 

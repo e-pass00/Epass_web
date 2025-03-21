@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Box, Typography, IconButton } from '@mui/material';
+import { Box, Typography, IconButton, Button } from '@mui/material';
 import {
   Favorite,
   FavoriteBorder,
   CalendarToday,
   LocationOn,
+  ArrowForward,
 } from '@mui/icons-material';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useToggleFavorite } from '../features/events/api/queries';
@@ -26,11 +27,108 @@ const pulseAnimation = keyframes`
   }
 `;
 
+const overlayAppear = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const StyledIconButton = styled(IconButton)`
   transition: all 0.3s ease;
   &.liked {
     animation: ${pulseAnimation} 0.3s ease;
   }
+`;
+
+const EventContainer = styled(Box)`
+  position: relative;
+  transition: transform 0.3s ease-in-out;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 16px;
+
+  @media (min-width: 960px) {
+    &:hover .event-overlay {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    &:hover .event-image {
+      transform: scale(1.05);
+      filter: brightness(0.7);
+    }
+  }
+`;
+
+const ImageContainer = styled(Box)`
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+`;
+
+const EventOverlay = styled(Box)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.5) 50%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  z-index: 2;
+  border-radius: 16px;
+
+  & > * {
+    animation: ${overlayAppear} 0.5s forwards;
+  }
+
+  & > *:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+`;
+
+const ViewMoreButton = styled(Button)`
+  margin-top: 16px;
+  background-color: #3ecf8e;
+  color: #000;
+  font-weight: bold;
+  border-radius: 30px;
+  padding: 8px 20px;
+  transition: all 0.3s ease;
+  text-transform: none;
+  letter-spacing: 1px;
+
+  &:hover {
+    background-color: #2ebf7e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(62, 207, 142, 0.3);
+  }
+`;
+
+const EventImage = styled(Box)`
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 16px;
+  transition:
+    transform 0.5s ease,
+    filter 0.5s ease;
 `;
 
 const formatDate = (dateString) => {
@@ -97,11 +195,8 @@ const EventCard = ({ event }) => {
   };
 
   return (
-    <Link
-      to={`/events/${event.id}`}
-      style={{ textDecoration: 'none', cursor: 'default' }}
-    >
-      <Box
+    <Link to={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
+      <EventContainer
         sx={{
           width: '100%',
           maxWidth: 400,
@@ -110,18 +205,12 @@ const EventCard = ({ event }) => {
           marginBottom: '-20px',
         }}
       >
-        <Box sx={{ position: 'relative' }}>
-          <Box
+        <ImageContainer>
+          <EventImage
             component="img"
             src={event.coverImage}
             alt={event.name}
-            sx={{
-              width: '100%',
-              height: 'auto',
-              aspectRatio: '1 / 1',
-              objectFit: 'cover',
-              borderRadius: '16px',
-            }}
+            className="event-image"
           />
           <Typography
             variant="caption"
@@ -135,6 +224,7 @@ const EventCard = ({ event }) => {
               borderRadius: '6px',
               fontWeight: 'bold',
               fontSize: '12px',
+              zIndex: 3,
             }}
             letterSpacing={1}
           >
@@ -152,12 +242,34 @@ const EventCard = ({ event }) => {
               '&:hover': {
                 backgroundColor: 'rgba(0, 0, 0, 0.5)!important',
               },
+              zIndex: 3,
             }}
             className={isLiked ? 'liked' : ''}
           >
             {isLiked ? <Favorite /> : <FavoriteBorder />}
           </StyledIconButton>
-        </Box>
+
+          {/* Overlay effect for desktop */}
+          <EventOverlay className="event-overlay">
+            <Typography
+              variant="h5"
+              sx={{
+                color: '#FFFFFF',
+                fontWeight: 'bold',
+                fontSize: '22px',
+                textAlign: 'center',
+                maxWidth: '80%',
+                mb: 2,
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+              }}
+            >
+              {event.name}
+            </Typography>
+            <ViewMoreButton variant="contained" endIcon={<ArrowForward />}>
+              Voir plus
+            </ViewMoreButton>
+          </EventOverlay>
+        </ImageContainer>
         <Box sx={{ p: 1 }}>
           <Typography
             variant="h5"
@@ -228,7 +340,7 @@ const EventCard = ({ event }) => {
             </Typography>
           </Box>
         </Box>
-      </Box>
+      </EventContainer>
     </Link>
   );
 };

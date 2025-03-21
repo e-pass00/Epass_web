@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog } from '@mui/material';
 import { useCreateEvent } from '../../features/events/api/queries';
+import useAuthStore from '../../features/auth/stores/authStore';
 import {
   X,
   Music,
@@ -32,6 +33,7 @@ const INITIAL_FORM_DATA = {
   name: '',
   description: '',
   category: '',
+  performers: [],
   location: {
     country: '',
     city: '',
@@ -57,6 +59,13 @@ const INITIAL_FORM_DATA = {
   },
 };
 
+const ticketTypes = [
+  { id: 'standard', name: 'Standard' },
+  { id: 'vip', name: 'VIP' },
+  { id: 'vvip', name: 'VVIP' },
+  { id: 'carreOr', name: 'Carré Or' },
+];
+
 // Animations
 const fadeIn = keyframes`
   from {
@@ -81,10 +90,9 @@ const bounce = keyframes`
   }
 `;
 
-// Styled Components avec z-index optimisé
+// Styled Components (inchangés)
 const StyledDialog = styled(Dialog)`
   z-index: 1300 !important;
-
   .MuiDialog-paper {
     background: #1a1a1a;
     width: 100vw;
@@ -95,7 +103,6 @@ const StyledDialog = styled(Dialog)`
     border-radius: 0;
     display: flex;
     flex-direction: column;
-
     @media (min-width: 768px) {
       width: min(90vw, 640px);
       height: min(90vh, 800px);
@@ -103,7 +110,6 @@ const StyledDialog = styled(Dialog)`
       border-radius: 12px;
     }
   }
-
   .MuiBackdrop-root {
     background-color: rgba(0, 0, 0, 0.85);
   }
@@ -143,7 +149,6 @@ const StyledToastContainer = styled(ToastContainer)`
   &.Toastify__toast-container {
     z-index: 10000 !important;
   }
-
   .Toastify__toast {
     background-color: #ff4d4d;
     color: white;
@@ -151,7 +156,6 @@ const StyledToastContainer = styled(ToastContainer)`
     border-radius: 10px;
     font-weight: 500;
   }
-
   .Toastify__toast-container--top-center {
     top: 1em;
   }
@@ -172,7 +176,6 @@ const CloseButton = styled.button`
   padding: 0.5rem;
   cursor: pointer;
   border-radius: 8px;
-
   &:hover {
     background: rgba(255, 255, 255, 0.1);
   }
@@ -185,7 +188,6 @@ const StepperContainer = styled.div`
   position: relative;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-
   &::after {
     content: '';
     position: absolute;
@@ -247,53 +249,47 @@ const Button = styled.button`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-
   ${({ primary, success }) =>
     success
       ? `
-    background: #3ecf8e;
-    color: white;
-    border: none;
-    width: 200px;
-    justify-content: center;
-    
-    &:hover {
-      background: #047857;
-    }
-  `
+        background: #3ecf8e;
+        color: white;
+        border: none;
+        width: 200px;
+        justify-content: center;
+        &:hover {
+          background: #047857;
+        }
+      `
       : primary
         ? `
-    background: #3ecf8e;
-    color: white;
-    border: none;
-    
-    &:hover {
-      background: #047857;
-    }
-  `
+        background: #3ecf8e;
+        color: white;
+        border: none;
+        &:hover {
+          background: #047857;
+        }
+      `
         : `
-    background: transparent;
-    color: #e5e7eb;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    
-    &:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-  `}
-
+        background: transparent;
+        color: #e5e7eb;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        &:hover {
+          background: rgba(255, 255, 255, 0.05);
+        }
+      `}
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 `;
 
-// Utility functions optimisés
+// Utility functions
 const validateCoordinates = (coordinates) => {
   if (!coordinates) return false;
   const [lat, lng] = coordinates.split(',').map((coord) => coord.trim());
   const latRegex = /^-?([0-8]?\d|90)(\.\d+)?$/;
   const lngRegex = /^-?((1[0-7]\d)|([0-9]?\d))(\.\d+)?$/;
-
   return (
     latRegex.test(lat) &&
     lngRegex.test(lng) &&
@@ -307,10 +303,8 @@ const validateCoordinates = (coordinates) => {
 const validateTimes = (startTime, endTime) => {
   if (!startTime) return false;
   if (!endTime) return true;
-
   const [startHour, startMinute] = startTime.split(':').map(Number);
   const [endHour, endMinute] = endTime.split(':').map(Number);
-
   return startHour * 60 + startMinute < endHour * 60 + endMinute;
 };
 
@@ -337,8 +331,8 @@ const EventCreationModal = ({ open, onClose }) => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const { mutate: createEvent } = useCreateEvent();
+  const { user } = useAuthStore();
 
-  // Memoized values
   const categories = useMemo(
     () => [
       { id: 'concert', name: 'Concert', icon: Music },
@@ -367,7 +361,6 @@ const EventCreationModal = ({ open, onClose }) => {
     []
   );
 
-  // Trigger confetti effect
   const triggerConfetti = useCallback(() => {
     const duration = 3000;
     const defaults = {
@@ -381,13 +374,11 @@ const EventCreationModal = ({ open, onClose }) => {
 
     const interval = setInterval(() => {
       const particleCount = 50;
-
       confetti({
         ...defaults,
         particleCount,
         origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
       });
-
       confetti({
         ...defaults,
         particleCount,
@@ -395,29 +386,25 @@ const EventCreationModal = ({ open, onClose }) => {
       });
     }, 250);
 
-    setTimeout(() => {
-      clearInterval(interval);
-    }, duration);
+    setTimeout(() => clearInterval(interval), duration);
   }, []);
 
-  // Optimized handlers using useCallback
   const handleChange = useCallback((field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const handleTicketTypeToggle = useCallback((typeId) => {
-    setFormData((prev) => ({
-      ...prev,
-      selectedTicketTypes: prev.selectedTicketTypes.includes(typeId)
+    setFormData((prev) => {
+      const selected = prev.selectedTicketTypes.includes(typeId)
         ? prev.selectedTicketTypes.filter((id) => id !== typeId)
-        : [...prev.selectedTicketTypes, typeId],
-    }));
+        : [...prev.selectedTicketTypes, typeId];
+      return { ...prev, selectedTicketTypes: selected };
+    });
   }, []);
 
   const handleFileChange = useCallback((type, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const url = URL.createObjectURL(file);
     setFormData((prev) => ({
       ...prev,
@@ -490,6 +477,16 @@ const EventCreationModal = ({ open, onClose }) => {
             );
             return false;
           }
+          if (formData.name.trim().length < 3) {
+            showError(
+              "Le nom de l'événement doit contenir au moins 3 caractères"
+            );
+            return false;
+          }
+          if (formData.description.trim().length < 10) {
+            showError('La description doit contenir au moins 10 caractères');
+            return false;
+          }
           return true;
         },
         2: () => {
@@ -539,7 +536,20 @@ const EventCreationModal = ({ open, onClose }) => {
             const ticket = formData.tickets[type];
             if (!ticket.price || !ticket.quantity) {
               showError(
-                `Veuillez remplir le prix et la quantité pour les billets ${type.toUpperCase()}`
+                `Veuillez remplir le prix et la quantité pour les billets ${
+                  ticketTypes.find((t) => t.id === type).name
+                }`
+              );
+              isValid = false;
+            }
+            if (
+              isNaN(parseFloat(ticket.price)) ||
+              isNaN(parseInt(ticket.quantity))
+            ) {
+              showError(
+                `Prix ou quantité invalide pour les billets ${
+                  ticketTypes.find((t) => t.id === type).name
+                }`
               );
               isValid = false;
             }
@@ -554,7 +564,6 @@ const EventCreationModal = ({ open, onClose }) => {
           return true;
         },
       };
-
       return validationRules[currentStep]?.() ?? true;
     },
     [formData]
@@ -564,71 +573,95 @@ const EventCreationModal = ({ open, onClose }) => {
     try {
       setIsLoading(true);
 
-      const eventData = {
-        name: formData.name,
-        description: formData.description,
+      if (!user || !user.uid) {
+        throw new Error('Vous devez être connecté pour créer un événement');
+      }
+
+      const { coordinates } = formData.location;
+      if (!validateCoordinates(coordinates)) {
+        throw new Error('Coordonnées GPS invalides');
+      }
+
+      const event = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         category: formData.category,
+        performers: formData.performers,
         location: {
-          address: formData.location.address,
-          city: formData.location.city,
+          address: formData.location.address.trim(),
+          city:
+            formData.location.city.charAt(0).toUpperCase() +
+            formData.location.city.slice(1),
           coordinates: {
-            latitude: parseFloat(formData.location.coordinates.split(',')[0]),
-            longitude: parseFloat(formData.location.coordinates.split(',')[1]),
+            latitude: parseFloat(coordinates.split(',')[0]),
+            longitude: parseFloat(coordinates.split(',')[1]),
           },
-          country: formData.location.country,
-          name: formData.location.venue,
+          country:
+            formData.location.country.charAt(0).toUpperCase() +
+            formData.location.country.slice(1),
+          name: formData.location.venue.trim(),
         },
-        startDate: `${formData.datetime.date}T${formData.datetime.startTime}:00`,
+        startDate: `${formData.datetime.date}T${formData.datetime.startTime}:00Z`,
         endDate: formData.datetime.endTime
-          ? `${formData.datetime.date}T${formData.datetime.endTime}:00`
-          : undefined,
-        organizerId: 'votre-id-organisateur',
+          ? `${formData.datetime.date}T${formData.datetime.endTime}:00Z`
+          : null,
       };
 
-      const ticketCategories = formData.selectedTicketTypes.map((type) => ({
-        name: type === 'carreOr' ? 'Carré Or' : type.toUpperCase(),
-        price: parseFloat(formData.tickets[type].price),
-        initQuantity: parseInt(formData.tickets[type].quantity),
-        advantages: formData.tickets[type].benefits.filter(
-          (benefit) => benefit.trim() !== ''
-        ),
-      }));
-
-      createEvent(
-        {
-          eventData,
-          ticketCategories,
-          coverImage: formData.media.image,
-          coverVideo: formData.media.video,
-        },
-        {
-          onSuccess: () => {
-            setIsLoading(false);
-            setIsSuccess(true);
-            triggerConfetti();
-          },
-          onError: (error) => {
-            setIsLoading(false);
-            const errorMessages = {
-              AUTH_ERROR: "Veuillez vous reconnecter pour créer l'événement",
-              FORBIDDEN:
-                "Vous n'avez pas les droits nécessaires pour créer un événement",
-              NETWORK_ERROR:
-                'Problème de connexion. Vérifiez votre connexion internet',
-            };
-            showError(
-              errorMessages[error.error] ||
-                error.message ||
-                'Une erreur est survenue'
-            );
-          },
+      const ticketCategories = formData.selectedTicketTypes.map((typeId) => {
+        const type = ticketTypes.find((t) => t.id === typeId);
+        const price = parseFloat(formData.tickets[typeId].price);
+        const quantity = parseInt(formData.tickets[typeId].quantity);
+        if (isNaN(price) || isNaN(quantity)) {
+          throw new Error(
+            `Prix ou quantité invalide pour le type ${type.name}`
+          );
         }
+        return {
+          name: type.name,
+          price,
+          initQuantity: quantity,
+          advantages: formData.tickets[typeId].benefits.filter(
+            (benefit) => benefit.trim() !== ''
+          ),
+        };
+      });
+
+      const formDataToSend = new FormData();
+      formDataToSend.append('event', JSON.stringify(event));
+      formDataToSend.append(
+        'ticketCategories',
+        JSON.stringify(ticketCategories)
       );
+      formDataToSend.append('coverImage', formData.media.image);
+      if (formData.media.video instanceof File) {
+        formDataToSend.append('coverVideo', formData.media.video);
+      }
+
+      console.log('Contenu du FormData avant envoi:');
+      for (const [key, value] of formDataToSend.entries()) {
+        console.log(
+          `${key}: ${value instanceof File ? `File (${value.name})` : value}`
+        );
+      }
+
+      await createEvent(formDataToSend, {
+        onSuccess: () => {
+          setIsLoading(false);
+          setIsSuccess(true);
+          triggerConfetti();
+        },
+        onError: (error) => {
+          setIsLoading(false);
+          showError(error.message || 'Une erreur est survenue');
+          console.error('Erreur complète:', error);
+        },
+      });
     } catch (error) {
       setIsLoading(false);
-      showError('Veuillez vérifier les informations saisies');
+      showError(error.message || 'Veuillez vérifier les informations saisies');
+      console.error('Erreur dans handleSubmit:', error);
     }
-  }, [formData, createEvent, triggerConfetti]);
+  }, [formData, createEvent, triggerConfetti, user]);
 
   const handleNext = useCallback(() => {
     if (step < TOTAL_STEPS) {
@@ -653,7 +686,6 @@ const EventCreationModal = ({ open, onClose }) => {
     onClose();
   }, [onClose]);
 
-  // Component rendering function
   const renderStepContent = useCallback(() => {
     const components = {
       1: <EventDetails formData={formData} handleChange={handleChange} />,
@@ -691,7 +723,6 @@ const EventCreationModal = ({ open, onClose }) => {
       ),
       8: <EventSummary formData={formData} mediaPreviews={mediaPreviews} />,
     };
-
     return components[step] || null;
   }, [
     step,
@@ -725,7 +756,6 @@ const EventCreationModal = ({ open, onClose }) => {
     [handleClose]
   );
 
-  // Cleanup effect
   useEffect(() => {
     return () => {
       Object.values(mediaPreviews).forEach((url) => {
