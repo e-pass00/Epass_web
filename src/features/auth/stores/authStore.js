@@ -140,7 +140,7 @@ const useAuthStore = create((set, get) => ({
       const { user: firebaseUser } = userCredential;
 
       await sendEmailVerification(firebaseUser, {
-        url: 'https://epass-ten.vercel.app/',
+        url: 'https://eppass.netlify.app',
       });
 
       const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -259,7 +259,7 @@ const useAuthStore = create((set, get) => ({
 
       // Envoi de l'email de réinitialisation
       await sendPasswordResetEmail(auth, email, {
-        url: 'https://epass-ten.vercel.app/login', // URL de redirection après réinitialisation
+        url: 'https://eppass.netlify.app/login', // URL de redirection après réinitialisation
       });
 
       set({ loading: false });
